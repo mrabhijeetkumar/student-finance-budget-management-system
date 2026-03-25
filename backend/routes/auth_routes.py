@@ -1,24 +1,24 @@
 from flask import Blueprint, request
-from werkzeug.security import generate_password_hash, check_password_hash
-from utils.db import get_db
-from utils.response_helper import success_response, error_response
-from utils.validators import is_valid_email, is_strong_password
+from werkzeug.security import check_password_hash, generate_password_hash
 
-auth_bp = Blueprint("auth", __name__, url_prefix="/api")
-
-from utils.jwt_helper import generate_token
 from middleware.auth_middleware import token_required
+from utils.db import get_db
+from utils.jwt_helper import generate_token
+from utils.response_helper import error_response, success_response
+from utils.validators import is_strong_password, is_valid_email
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api")
+
 
 @auth_bp.route("/protected", methods=["GET"])
 @token_required
 def protected():
     return success_response("You have accessed a protected route!", None, 200)
 
+
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     name = data.get("name", "").strip()
     email = data.get("email", "").strip().lower()
@@ -34,28 +34,31 @@ def register():
         return error_response("Password must be at least 6 characters long", 400)
 
     db = get_db()
-    existing_user = db.execute(
-        "SELECT id FROM users WHERE email = ?",
-        (email,)
-    ).fetchone()
+    existing_user = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
 
     if existing_user:
         return error_response("Email already registered", 409)
 
     hashed_password = generate_password_hash(password)
-
-    db.execute(
+    cursor = db.execute(
         "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-        (name, email, hashed_password)
+        (name, email, hashed_password),
     )
     db.commit()
 
-    return success_response("User registered successfully", None, 201)
+    user = {"id": cursor.lastrowid, "name": name, "email": email}
+    token = generate_token(user)
+
+    return success_response(
+        "User registered successfully",
+        {"token": token, "user": user},
+        201,
+    )
 
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     email = data.get("email", "").strip().lower()
     password = data.get("password", "").strip()
@@ -66,22 +69,23 @@ def login():
     db = get_db()
     user = db.execute(
         "SELECT id, name, email, password FROM users WHERE email = ?",
-        (email,)
+        (email,),
     ).fetchone()
 
-    if not user:
-        return error_response("Invalid email or password", 401)
-
-    if not check_password_hash(user["password"], password):
+    if not user or not check_password_hash(user["password"], password):
         return error_response("Invalid email or password", 401)
 
     token = generate_token(user)
 
-    return success_response("Login successful", {
-        "token": token,
-        "user": {
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"]
-        }
-    }, 200)
+    return success_response(
+        "Login successful",
+        {
+            "token": token,
+            "user": {
+                "id": user["id"],
+                "name": user["name"],
+                "email": user["email"],
+            },
+        },
+        200,
+    )

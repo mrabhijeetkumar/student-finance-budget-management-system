@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import API, { setAuthToken } from "../services/api";
+
 import ToastMessage from "../components/common/ToastMessage";
+import API, { setAuthToken } from "../services/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -21,17 +22,27 @@ export default function Login() {
     event.preventDefault();
     try {
       setLoading(true);
-      const response = await API.post("/login", { email, password });
-      const token = response.data.data.token;
-      const user = response.data.data.user;
+      const response = await API.post("/login", {
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      const token = response.data?.data?.token;
+      const user = response.data?.data?.user;
+
+      if (!token || !user) {
+        throw new Error("Login payload missing");
+      }
 
       localStorage.setItem("token", token);
       localStorage.setItem("user_email", user.email);
       localStorage.setItem("user_name", user.name || "User");
       setAuthToken(token);
       navigate("/dashboard", { replace: true });
-    } catch {
-      setToast({ message: "Invalid credentials", type: "error" });
+    } catch (error) {
+      setToast({
+        message: error.response?.data?.message || "Login failed. Please try again.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
