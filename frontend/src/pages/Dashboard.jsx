@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+
 import API from "../services/api";
 import AppShell from "../components/common/AppShell";
 import Loader from "../components/common/Loader";
@@ -9,51 +10,132 @@ import { formatCurrency, formatDate, getMonthKey } from "../utils/finance";
 
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899"];
 
-function PieLegend({ data }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+function CategoryDonutChart({ data }) {
+  const total = data.reduce((acc, item) => acc + item.value, 0);
+  const radius = 90;
+  const strokeWidth = 36;
+  const normalizedRadius = radius - strokeWidth / 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  let cumulative = 0;
 
   return (
-    <div className="legend-list">
-      {data.map((item, index) => (
-        <div key={item.name} className="legend-item">
-          <span className="dot" style={{ background: COLORS[index % COLORS.length] }} />
-          <span>{item.name}</span>
-          <strong>{total ? `${Math.round((item.value / total) * 100)}%` : "0%"}</strong>
-        </div>
-      ))}
+    <div className="donut-wrap">
+      <svg className="donut-chart" viewBox="0 0 220 220" role="img" aria-label="Expense category distribution">
+        <g transform="rotate(-90 110 110)">
+          {data.map((item, index) => {
+            const fraction = total ? item.value / total : 0;
+            const dash = fraction * circumference;
+            const dashArray = `${dash} ${circumference - dash}`;
+            const dashOffset = -cumulative * circumference;
+            cumulative += fraction;
+
+            return (
+              <circle
+                key={item.name}
+                cx="110"
+                cy="110"
+                r={normalizedRadius}
+                fill="none"
+                stroke={COLORS[index % COLORS.length]}
+                strokeWidth={strokeWidth}
+                strokeDasharray={dashArray}
+                strokeDashoffset={dashOffset}
+                strokeLinecap="butt"
+              />
+            );
+          })}
+        </g>
+        <text x="110" y="104" textAnchor="middle" className="donut-total-label">Total</text>
+        <text x="110" y="128" textAnchor="middle" className="donut-total-value">{formatCurrency(total)}</text>
+      </svg>
+
+      <div className="legend-list">
+        {data.map((item, index) => (
+          <div key={item.name} className="legend-item">
+            <span className="dot" style={{ background: COLORS[index % COLORS.length] }} />
+            <span>{item.name}</span>
+            <strong>{total ? `${Math.round((item.value / total) * 100)}%` : "0%"}</strong>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 function MonthlyBarChart({ data }) {
   const max = Math.max(...data.map((item) => item.total), 1);
-  const ticks = [1, 0.75, 0.5, 0.25].map((ratio) => Math.round(max * ratio));
 
   return (
-    <div className="month-chart-wrap">
-      <div className="y-axis">
-        {ticks.map((tick) => (
-          <span key={tick}>{formatCurrency(tick)}</span>
-        ))}
-      </div>
-
-      <div className="bar-chart-grid">
-        {ticks.map((tick) => (
-          <div key={tick} className="grid-line" />
-        ))}
-
-        <div className="bar-chart">
-          {data.map((item) => (
-            <div key={item.month} className="bar-column" title={`${item.month}: ${formatCurrency(item.total)}`}>
-              <div className="bar-track">
-                <div className="bar-fill" style={{ height: `${(item.total / max) * 100}%` }}>
-                  <span className="bar-value">{formatCurrency(item.total)}</span>
-                </div>
-              </div>
-              <span className="bar-label">{item.month}</span>
+    <div className="bar-chart">
+      {data.map((item) => (
+        <div key={item.month} className="bar-column" title={`${item.month}: ${formatCurrency(item.total)}`}>
+          <div className="bar-track">
+            <div className="bar-fill" style={{ height: `${Math.max((item.total / max) * 100, 6)}%` }}>
+              <span className="bar-value">{formatCurrency(item.total)}</span>
             </div>
-          ))}
+          </div>
+          <span className="bar-label">{item.month}</span>
         </div>
+      ))}
+    </div>
+  );
+}
+
+function TrendChart({ data }) {
+  if (!data.length) {
+    return <EmptyState message="Add income and expense entries to see trend graph" />;
+  }
+
+  const width = 900;
+  const height = 320;
+  const padding = 44;
+  const labels = ["income", "expense", "savings"];
+
+  const maxValue = Math.max(...data.flatMap((item) => labels.map((key) => item[key])), 1);
+  const minValue = Math.min(...data.flatMap((item) => labels.map((key) => item[key])), 0);
+  const range = Math.max(maxValue - minValue, 1);
+
+  const x = (idx) => {
+    if (data.length === 1) return width / 2;
+    return padding + (idx * (width - padding * 2)) / (data.length - 1);
+  };
+  const y = (value) => height - padding - ((value - minValue) / range) * (height - padding * 2);
+
+  const pathFor = (key) => data.map((item, idx) => `${idx === 0 ? "M" : "L"}${x(idx)} ${y(item[key])}`).join(" ");
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((r) => maxValue - (maxValue - minValue) * r);
+
+  return (
+    <div className="trend-chart-wrap">
+      <svg className="trend-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Income expense savings trend chart">
+        {yTicks.map((tick) => {
+          const yPos = y(tick);
+          return (
+            <g key={tick}>
+              <line className="trend-grid-line" x1={padding} y1={yPos} x2={width - padding} y2={yPos} />
+              <text className="trend-axis-label" x={10} y={yPos + 4}>{formatCurrency(tick)}</text>
+            </g>
+          );
+        })}
+
+        <path d={pathFor("income")} className="trend-line trend-line-income" />
+        <path d={pathFor("expense")} className="trend-line trend-line-expense" />
+        <path d={pathFor("savings")} className="trend-line trend-line-savings" />
+
+        {data.map((item, idx) => (
+          <g key={item.month}>
+            <circle cx={x(idx)} cy={y(item.income)} r="5" className="trend-point trend-point-income" />
+            <circle cx={x(idx)} cy={y(item.expense)} r="5" className="trend-point trend-point-expense" />
+            <circle cx={x(idx)} cy={y(item.savings)} r="5" className="trend-point trend-point-savings" />
+            <text className="trend-axis-label" x={x(idx)} y={height - 14} textAnchor="middle">{item.month}</text>
+          </g>
+        ))}
+      </svg>
+
+      <div className="trend-legend">
+        <span><i className="trend-chip trend-chip-income" /> Income</span>
+        <span><i className="trend-chip trend-chip-expense" /> Expense</span>
+        <span><i className="trend-chip trend-chip-savings" /> Savings</span>
       </div>
     </div>
   );
@@ -64,7 +146,6 @@ function BudgetProgress({ spent, balance }) {
   const budgetStorageKey = `monthly_budget_${userEmail}`;
   const [budget, setBudget] = useState(() => Number(localStorage.getItem(budgetStorageKey) || 50000));
   const [savedMessage, setSavedMessage] = useState("");
-
 
   const usedPercent = Math.min(Math.round((spent / Math.max(budget, 1)) * 100), 100);
   const remaining = Math.max(budget - spent, 0);
@@ -77,7 +158,7 @@ function BudgetProgress({ spent, balance }) {
   };
 
   return (
-    <div className="panel">
+    <div className="panel glass-panel">
       <div className="panel-title-row">
         <h3>Manual Budget Tracker</h3>
         <span className={spent > budget ? "chip chip-danger" : "chip chip-success"}>
@@ -91,13 +172,7 @@ function BudgetProgress({ spent, balance }) {
         <div className="progress-fill" style={{ width: `${usedPercent}%` }} />
       </div>
       <form className="inline-form" onSubmit={saveBudget}>
-        <input
-          className="input"
-          type="number"
-          min="1"
-          value={budget}
-          onChange={(event) => setBudget(Number(event.target.value))}
-        />
+        <input className="input" type="number" min="1" value={budget} onChange={(event) => setBudget(Number(event.target.value))} />
         <button className="button" type="submit">Set Budget</button>
       </form>
       {savedMessage ? <p className="muted">{savedMessage}</p> : null}
@@ -168,6 +243,32 @@ export default function Dashboard() {
       .map(({ month, total }) => ({ month, total }));
   }, [expenses]);
 
+  const savingsTrendData = useMemo(() => {
+    const monthlyMap = {};
+
+    for (const item of incomes) {
+      const date = new Date(item.date);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      if (!monthlyMap[key]) {
+        monthlyMap[key] = { ts: new Date(date.getFullYear(), date.getMonth(), 1).getTime(), month: getMonthKey(item.date), income: 0, expense: 0 };
+      }
+      monthlyMap[key].income += Number(item.amount);
+    }
+
+    for (const item of expenses) {
+      const date = new Date(item.date);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      if (!monthlyMap[key]) {
+        monthlyMap[key] = { ts: new Date(date.getFullYear(), date.getMonth(), 1).getTime(), month: getMonthKey(item.date), income: 0, expense: 0 };
+      }
+      monthlyMap[key].expense += Number(item.amount);
+    }
+
+    return Object.values(monthlyMap)
+      .sort((a, b) => a.ts - b.ts)
+      .map((item) => ({ ...item, savings: item.income - item.expense }));
+  }, [incomes, expenses]);
+
   const smartInsights = useMemo(() => {
     const totalExpense = expenses.reduce((acc, item) => acc + Number(item.amount), 0);
     const topCategory = [...categoryChartData].sort((a, b) => b.value - a.value)[0]?.name || "-";
@@ -181,14 +282,8 @@ export default function Dashboard() {
     const month = now.getMonth();
     const year = now.getFullYear();
 
-    const todaySpending = expenses
-      .filter((item) => item.date === todayKey)
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-
-    const weekSpending = expenses
-      .filter((item) => new Date(item.date) >= weekStart)
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-
+    const todaySpending = expenses.filter((item) => item.date === todayKey).reduce((sum, item) => sum + Number(item.amount), 0);
+    const weekSpending = expenses.filter((item) => new Date(item.date) >= weekStart).reduce((sum, item) => sum + Number(item.amount), 0);
     const monthSpending = expenses
       .filter((item) => {
         const d = new Date(item.date);
@@ -242,11 +337,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid-2">
-        <div className="panel">
+        <div className="panel glass-panel">
           <h3>Recent Transactions</h3>
-          {transactions.length === 0 ? (
-            <EmptyState message="No recent transactions yet" />
-          ) : (
+          {transactions.length === 0 ? <EmptyState message="No recent transactions yet" /> : (
             <ul className="transaction-list">
               {transactions.map((item) => (
                 <li key={`${item.type}-${item.id}`}>
@@ -267,19 +360,20 @@ export default function Dashboard() {
       </div>
 
       <div className="grid-2">
-        <div className="panel">
+        <div className="panel glass-panel">
           <h3>Category Analysis (with %)</h3>
-          {categoryChartData.length === 0 ? <EmptyState message="Add expenses to see chart data" /> : <PieLegend data={categoryChartData} />}
+          {categoryChartData.length === 0 ? <EmptyState message="Add expenses to see chart data" /> : <CategoryDonutChart data={categoryChartData} />}
         </div>
 
-        <div className="panel">
+        <div className="panel glass-panel">
           <h3>Monthly Expense Analysis</h3>
-          {monthlyChartData.length === 0 ? (
-            <EmptyState message="Monthly chart appears once expenses are added" />
-          ) : (
-            <MonthlyBarChart data={monthlyChartData} />
-          )}
+          {monthlyChartData.length === 0 ? <EmptyState message="Monthly chart appears once expenses are added" /> : <MonthlyBarChart data={monthlyChartData} />}
         </div>
+      </div>
+
+      <div className="panel glass-panel">
+        <h3>Income vs Expense vs Savings Trend</h3>
+        <TrendChart data={savingsTrendData} />
       </div>
     </AppShell>
   );

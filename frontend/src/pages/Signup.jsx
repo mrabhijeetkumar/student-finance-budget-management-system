@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import API from "../services/api";
+
 import ToastMessage from "../components/common/ToastMessage";
+import API, { setAuthToken } from "../services/api";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -13,16 +14,39 @@ export default function Signup() {
 
   const handleSignup = async (event) => {
     event.preventDefault();
+
+    if (password.trim().length < 6) {
+      setToast({ message: "Password must be at least 6 characters", type: "error" });
+      return;
+    }
+
     try {
       setLoading(true);
-      await API.post("/register", { name, email, password });
+      const response = await API.post("/register", {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      const token = response.data?.data?.token;
+      const user = response.data?.data?.user;
+
+      if (token && user) {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user_email", user.email);
+        localStorage.setItem("user_name", user.name || "User");
+        setAuthToken(token);
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
       navigate("/login", {
         replace: true,
         state: { message: "Account created successfully. Please login." },
       });
     } catch (error) {
       setToast({
-        message: error.response?.data?.message || "Signup failed",
+        message: error.response?.data?.message || "Signup failed. Please try again.",
         type: "error",
       });
     } finally {
@@ -73,6 +97,7 @@ export default function Signup() {
           className="input"
           type="password"
           placeholder="Password"
+          minLength={6}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
