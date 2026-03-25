@@ -5,6 +5,7 @@ const links = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/expenses", label: "Expenses" },
   { to: "/income", label: "Income" },
+  { to: "/history", label: "History" },
 ];
 
 export default function Sidebar() {
@@ -13,6 +14,7 @@ export default function Sidebar() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user_email");
+    localStorage.removeItem("user_name");
     setAuthToken(null);
     navigate("/login", { replace: true });
   };
