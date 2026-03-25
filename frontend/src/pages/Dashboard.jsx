@@ -141,6 +141,57 @@ function TrendChart({ data }) {
   );
 }
 
+function SavingsTrendChart({ data }) {
+  if (!data.length) {
+    return <EmptyState message="Add income and expenses to unlock trend chart" />;
+  }
+
+  const maxValue = Math.max(...data.map((item) => Math.max(item.income, item.expense, item.savings)), 1);
+  const minValue = Math.min(...data.map((item) => Math.min(item.income, item.expense, item.savings, 0)), 0);
+  const range = Math.max(maxValue - minValue, 1);
+  const width = 640;
+  const height = 260;
+  const padding = 28;
+
+  const toX = (index) => padding + ((width - padding * 2) * index) / Math.max(data.length - 1, 1);
+  const toY = (value) => height - padding - ((value - minValue) / range) * (height - padding * 2);
+
+  const buildPath = (selector) =>
+    data
+      .map((item, index) => `${index === 0 ? "M" : "L"}${toX(index)} ${toY(item[selector])}`)
+      .join(" ");
+
+  const incomePath = buildPath("income");
+  const expensePath = buildPath("expense");
+  const savingsPath = buildPath("savings");
+
+  return (
+    <div className="trend-chart-wrap">
+      <svg viewBox={`0 0 ${width} ${height}`} className="trend-chart" role="img" aria-label="Income, expense and savings trend">
+        {[0, 0.25, 0.5, 0.75, 1].map((mark) => {
+          const y = padding + (height - padding * 2) * mark;
+          return <line key={mark} x1={padding} y1={y} x2={width - padding} y2={y} className="trend-grid-line" />;
+        })}
+        <path d={incomePath} className="trend-line trend-line-income" />
+        <path d={expensePath} className="trend-line trend-line-expense" />
+        <path d={savingsPath} className="trend-line trend-line-savings" />
+      </svg>
+
+      <div className="trend-legend">
+        <span><i className="trend-chip trend-chip-income" /> Income</span>
+        <span><i className="trend-chip trend-chip-expense" /> Expense</span>
+        <span><i className="trend-chip trend-chip-savings" /> Savings</span>
+      </div>
+
+      <div className="trend-x-axis">
+        {data.map((item) => (
+          <span key={item.month}>{item.month}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BudgetProgress({ spent, balance }) {
   const userEmail = localStorage.getItem("user_email") || "guest";
   const budgetStorageKey = `monthly_budget_${userEmail}`;
