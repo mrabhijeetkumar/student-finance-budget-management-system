@@ -77,3 +77,5 @@ CREATE TABLE IF NOT EXISTS recurring_expenses (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, date);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_user_month_category ON budgets(user_id, month, category);

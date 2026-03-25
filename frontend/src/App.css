@@ -942,3 +942,29 @@ body.theme-dark .stat-card {
     grid-template-columns: 1fr;
   }
 }
+
+.toolbar-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.budget-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+}
+
+.chip-warning { background: #fef3c7; color: #92400e; }
+
+@media (max-width: 980px) {
+  .toolbar-4,
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+}
