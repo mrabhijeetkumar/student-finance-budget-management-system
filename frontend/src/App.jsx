@@ -1,24 +1,46 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import { setAuthToken } from "./services/api";
+import Expenses from "./pages/Expenses";
+import Income from "./pages/Income";
+import ProtectedRoute from "./components/common/ProtectedRoute";
+
+function AuthRedirect() {
+  const token = localStorage.getItem("token");
+  return <Navigate to={token ? "/dashboard" : "/login"} replace />;
+}
 
 function App() {
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      setAuthToken(token);
-    }
-  }, []);
-
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/" element={<AuthRedirect />} />
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/expenses"
+        element={
+          <ProtectedRoute>
+            <Expenses />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/income"
+        element={
+          <ProtectedRoute>
+            <Income />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

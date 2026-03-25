@@ -1,47 +1,65 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API, { setAuthToken } from "../services/api";
+import ToastMessage from "../components/common/ToastMessage";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "success" });
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
+  const handleLogin = async (event) => {
+    event.preventDefault();
     try {
-      const res = await API.post("/login", {
-        email,
-        password,
-      });
-
-      const token = res.data.data.token;
+      setLoading(true);
+      const response = await API.post("/login", { email, password });
+      const token = response.data.data.token;
 
       localStorage.setItem("token", token);
       setAuthToken(token);
-
-      alert("Login successful ✅");
-    } catch (err) {
-      alert("Login failed ❌");
+      navigate("/dashboard", { replace: true });
+    } catch {
+      setToast({ message: "Invalid credentials", type: "error" });
+    } finally {
+      setLoading(false);
     }
-    navigate("/dashboard");
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Login</h2>
+    <div className="auth-wrap">
+      <ToastMessage
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ message: "", type: "success" })}
+      />
+      <form className="auth-card" onSubmit={handleLogin}>
+        <h2>Welcome Back</h2>
+        <p>Login to continue managing your finances.</p>
 
-      <input
-        placeholder="Email"
-        onChange={(e) => setEmail(e.target.value)}
-      /><br /><br />
+        <input
+          className="input"
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
 
-      <input
-        type="password"
-        placeholder="Password"
-        onChange={(e) => setPassword(e.target.value)}
-      /><br /><br />
+        <input
+          className="input"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
 
-      <button onClick={handleLogin}>Login</button>
+        <button className="button" type="submit" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      </form>
     </div>
   );
 }
