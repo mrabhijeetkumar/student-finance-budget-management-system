@@ -35,7 +35,6 @@ def register():
 
     db = get_db()
     existing_user = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-
     if existing_user:
         return error_response("Email already registered", 409)
 
@@ -49,11 +48,7 @@ def register():
     user = {"id": cursor.lastrowid, "name": name, "email": email}
     token = generate_token(user)
 
-    return success_response(
-        "User registered successfully",
-        {"token": token, "user": user},
-        201,
-    )
+    return success_response("User registered successfully", {"token": token, "user": user}, 201)
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -72,7 +67,10 @@ def login():
         (email,),
     ).fetchone()
 
-    if not user or not check_password_hash(user["password"], password):
+    if not user:
+        return error_response("Invalid email or password", 401)
+
+    if not check_password_hash(user["password"], password):
         return error_response("Invalid email or password", 401)
 
     token = generate_token(user)

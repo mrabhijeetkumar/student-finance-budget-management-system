@@ -37,7 +37,14 @@ export default function Expenses() {
   const loadExpenses = async () => {
     try {
       setLoading(true);
-      const response = await API.get("/expenses");
+      const response = await API.get("/expenses", {
+        params: {
+          q: search || undefined,
+          category: categoryFilter !== "All" ? categoryFilter : undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+        },
+      });
       setExpenses(response.data.data || []);
     } catch {
       setToast({ message: "Could not fetch expenses", type: "error" });
@@ -48,21 +55,11 @@ export default function Expenses() {
 
   useEffect(() => {
     loadExpenses();
-  }, []);
+  }, [search, categoryFilter, startDate, endDate]);
 
   const totalExpense = expenses.reduce((sum, item) => sum + Number(item.amount), 0);
 
   const filteredExpenses = useMemo(() => {
-    const result = expenses.filter((item) => {
-      const matchCategory = categoryFilter === "All" || item.category === categoryFilter;
-      const query = search.toLowerCase();
-      const matchSearch =
-        item.category.toLowerCase().includes(query) || (item.note || "").toLowerCase().includes(query);
-      const matchStart = !startDate || item.date >= startDate;
-      const matchEnd = !endDate || item.date <= endDate;
-      return matchCategory && matchSearch && matchStart && matchEnd;
-    });
-
     const sorters = {
       date_desc: (a, b) => new Date(b.date) - new Date(a.date),
       date_asc: (a, b) => new Date(a.date) - new Date(b.date),
@@ -70,8 +67,8 @@ export default function Expenses() {
       amount_asc: (a, b) => Number(a.amount) - Number(b.amount),
     };
 
-    return result.sort(sorters[sortBy]);
-  }, [expenses, categoryFilter, search, startDate, endDate, sortBy]);
+    return [...expenses].sort(sorters[sortBy]);
+  }, [expenses, sortBy]);
 
   const totalPages = Math.max(Math.ceil(filteredExpenses.length / PAGE_SIZE), 1);
   const paginatedExpenses = filteredExpenses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -134,36 +131,43 @@ export default function Expenses() {
     }
   };
 
-  const exportCsv = () => {
-    if (filteredExpenses.length === 0) {
-      setToast({ message: "No filtered data available for export", type: "error" });
-      return;
+  const exportCsv = async () => {
+    try {
+      const response = await API.get("/reports/expenses/csv", { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "expenses-export.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setToast({ message: "CSV export failed", type: "error" });
     }
-
-    const headers = ["Date", "Category", "Note", "Amount"];
-    const rows = filteredExpenses.map((item) => [item.date, item.category, item.note || "", item.amount]);
-    const csv = [headers, ...rows].map((row) => row.map((value) => `"${value}"`).join(",")).join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "expenses-export.csv";
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
-  const highestExpense = useMemo(() => {
-    return filteredExpenses.reduce((max, item) => Math.max(max, Number(item.amount)), 0);
-  }, [filteredExpenses]);
+  const exportPdf = async () => {
+    const month = (startDate || new Date().toISOString().slice(0, 7)).slice(0, 7);
+    try {
+      const response = await API.get("/reports/expenses/monthly-pdf", {
+        params: { month },
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `expense-report-${month}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setToast({ message: error.response?.data?.message || "PDF export failed", type: "error" });
+    }
+  };
+
+  const highestExpense = useMemo(() => filteredExpenses.reduce((max, item) => Math.max(max, Number(item.amount)), 0), [filteredExpenses]);
 
   return (
-    <AppShell title="Expenses" subtitle="Advanced spend management with filters, edit, export">
-      <ToastMessage
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast({ message: "", type: "success" })}
-      />
+    <AppShell title="Expenses" subtitle="Search, filter, export, and manage spending">
+      <ToastMessage message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
 
       <div className="stats-grid stats-grid-3">
         <StatMini title="Total Spend" value={formatCurrency(totalExpense)} />
@@ -171,57 +175,18 @@ export default function Expenses() {
         <StatMini title="Highest Expense" value={formatCurrency(highestExpense)} />
       </div>
 
-      {totalExpense > 50000 ? (
-        <div className="warning-banner">Warning: your expense total crossed ₹50,000 budget limit.</div>
-      ) : null}
-
       <div className="panel">
         <h3>{editingId ? "Edit Expense" : "Add Expense"}</h3>
         <form className="form-grid" onSubmit={handleSaveExpense}>
-          <input
-            className="input"
-            type="number"
-            step="0.01"
-            placeholder="Amount"
-            value={form.amount}
-            onChange={(event) => setForm({ ...form, amount: event.target.value })}
-          />
-
-          <select
-            className="input"
-            value={form.category}
-            onChange={(event) => setForm({ ...form, category: event.target.value })}
-          >
-            {EXPENSE_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
+          <input className="input" type="number" step="0.01" placeholder="Amount" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} />
+          <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
+            {EXPENSE_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
           </select>
-
-          <input
-            className="input"
-            type="date"
-            value={form.date}
-            onChange={(event) => setForm({ ...form, date: event.target.value })}
-          />
-
-          <input
-            className="input"
-            placeholder="Note"
-            value={form.note}
-            onChange={(event) => setForm({ ...form, note: event.target.value })}
-          />
-
+          <input className="input" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
+          <input className="input" placeholder="Note" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} />
           <div className="form-actions">
-            <button className="button" type="submit" disabled={saving}>
-              {saving ? "Saving..." : editingId ? "Update Expense" : "Add Expense"}
-            </button>
-            {editingId ? (
-              <button className="button button-ghost" type="button" onClick={resetForm}>
-                Cancel Edit
-              </button>
-            ) : null}
+            <button className="button" type="submit" disabled={saving}>{saving ? "Saving..." : editingId ? "Update Expense" : "Add Expense"}</button>
+            {editingId ? <button className="button button-ghost" type="button" onClick={resetForm}>Cancel Edit</button> : null}
           </div>
         </form>
       </div>
@@ -238,28 +203,17 @@ export default function Expenses() {
           </select>
         </div>
 
-        <div className="toolbar toolbar-3">
+        <div className="toolbar toolbar-4">
           <input className="input" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
           <input className="input" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
           <button className="button button-ghost" onClick={exportCsv}>Export CSV</button>
+          <button className="button button-ghost" onClick={exportPdf}>Export PDF</button>
         </div>
 
-        {loading ? (
-          <Loader label="Loading expenses" />
-        ) : filteredExpenses.length === 0 ? (
-          <EmptyState message="No expenses match your filters" />
-        ) : (
+        {loading ? <Loader label="Loading expenses" /> : filteredExpenses.length === 0 ? <EmptyState message="No expenses match your filters" /> : (
           <>
             <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Category</th>
-                  <th>Note</th>
-                  <th>Amount</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Date</th><th>Category</th><th>Note</th><th>Amount</th><th>Actions</th></tr></thead>
               <tbody>
                 {paginatedExpenses.map((expense) => (
                   <tr key={expense.id}>
@@ -284,13 +238,7 @@ export default function Expenses() {
         )}
       </div>
 
-      <ConfirmModal
-        open={Boolean(confirmId)}
-        title="Delete expense"
-        message="This action cannot be undone. Are you sure?"
-        onCancel={() => setConfirmId(null)}
-        onConfirm={handleDelete}
-      />
+      <ConfirmModal open={Boolean(confirmId)} title="Delete expense" message="This action cannot be undone. Are you sure?" onCancel={() => setConfirmId(null)} onConfirm={handleDelete} />
     </AppShell>
   );
 }
