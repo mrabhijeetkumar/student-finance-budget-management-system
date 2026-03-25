@@ -1,103 +1,262 @@
-// Delete expense function
-const deleteExpense = async (id) => {
-    try {
-        await API.delete(`/expenses/${id}`);
-        fetchData(); // refresh list
-    } catch (err) {
-        alert("Delete failed ❌");
-    }
-};
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
+import AppShell from "../components/common/AppShell";
+import Loader from "../components/common/Loader";
+import StatCard from "../components/common/StatCard";
+import EmptyState from "../components/common/EmptyState";
+import ToastMessage from "../components/common/ToastMessage";
+import { formatCurrency, formatDate, getMonthKey } from "../utils/finance";
+
+const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899"];
+
+function PieLegend({ data }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <div className="legend-list">
+      {data.map((item, index) => (
+        <div key={item.name} className="legend-item">
+          <span className="dot" style={{ background: COLORS[index % COLORS.length] }} />
+          <span>{item.name}</span>
+          <strong>{total ? `${Math.round((item.value / total) * 100)}%` : "0%"}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MonthlyBarChart({ data }) {
+  const max = Math.max(...data.map((item) => item.total), 1);
+
+  return (
+    <div className="bar-chart">
+      {data.map((item) => (
+        <div key={item.month} className="bar-column" title={formatCurrency(item.total)}>
+          <div className="bar-track">
+            <div className="bar-fill" style={{ height: `${(item.total / max) * 100}%` }} />
+          </div>
+          <span>{item.month}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BudgetProgress({ spent, balance }) {
+  const userEmail = localStorage.getItem("user_email") || "guest";
+  const budgetStorageKey = `monthly_budget_${userEmail}`;
+  const [budget, setBudget] = useState(() => Number(localStorage.getItem(budgetStorageKey) || 50000));
+  const [savedMessage, setSavedMessage] = useState("");
+
+
+  const usedPercent = Math.min(Math.round((spent / Math.max(budget, 1)) * 100), 100);
+  const remaining = Math.max(budget - spent, 0);
+
+  const saveBudget = (event) => {
+    event.preventDefault();
+    localStorage.setItem(budgetStorageKey, String(budget));
+    setSavedMessage("Manual budget saved");
+    setTimeout(() => setSavedMessage(""), 1500);
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-title-row">
+        <h3>Manual Budget Tracker</h3>
+        <span className={spent > budget ? "chip chip-danger" : "chip chip-success"}>
+          {spent > budget ? "Over Budget" : "On Track"}
+        </span>
+      </div>
+      <p className="muted">Spent: {formatCurrency(spent)}</p>
+      <p className="muted">Remaining: {formatCurrency(remaining)}</p>
+      <p className="muted">Current Balance: {formatCurrency(balance)}</p>
+      <div className="progress-wrap">
+        <div className="progress-fill" style={{ width: `${usedPercent}%` }} />
+      </div>
+      <form className="inline-form" onSubmit={saveBudget}>
+        <input
+          className="input"
+          type="number"
+          min="1"
+          value={budget}
+          onChange={(event) => setBudget(Number(event.target.value))}
+        />
+        <button className="button" type="submit">Set Budget</button>
+      </form>
+      {savedMessage ? <p className="muted">{savedMessage}</p> : null}
+    </div>
+  );
+}
 
 export default function Dashboard() {
-    const [data, setData] = useState(null);
-    const [expenses, setExpenses] = useState([]);
-    const [amount, setAmount] = useState("");
-    const [category, setCategory] = useState("");
+  const [summary, setSummary] = useState(null);
+  const [expenses, setExpenses] = useState([]);
+  const [incomes, setIncomes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState("");
 
-    const fetchData = async () => {
-        try {
-            const res = await API.get("/dashboard/summary");
-            setData(res.data.data);
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      const [summaryRes, expenseRes, incomeRes] = await Promise.all([
+        API.get("/dashboard/summary"),
+        API.get("/expenses"),
+        API.get("/incomes"),
+      ]);
 
-            const exp = await API.get("/expenses");
-            setExpenses(exp.data.data);
-        } catch (err) {
-            alert("Error loading data ❌");
-        }
+      setSummary(summaryRes.data.data);
+      setExpenses(expenseRes.data.data || []);
+      setIncomes(incomeRes.data.data || []);
+    } catch {
+      setToast("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const transactions = useMemo(() => {
+    const normalizedExpenses = expenses.map((item) => ({ ...item, type: "expense", title: item.category }));
+    const normalizedIncome = incomes.map((item) => ({ ...item, type: "income", title: item.source }));
+
+    return [...normalizedExpenses, ...normalizedIncome]
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5);
+  }, [expenses, incomes]);
+
+  const categoryChartData = useMemo(() => {
+    const map = expenses.reduce((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + Number(item.amount);
+      return acc;
+    }, {});
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [expenses]);
+
+  const monthlyChartData = useMemo(() => {
+    const map = expenses.reduce((acc, item) => {
+      const key = getMonthKey(item.date);
+      acc[key] = (acc[key] || 0) + Number(item.amount);
+      return acc;
+    }, {});
+    return Object.entries(map).map(([month, total]) => ({ month, total }));
+  }, [expenses]);
+
+  const smartInsights = useMemo(() => {
+    const totalExpense = expenses.reduce((acc, item) => acc + Number(item.amount), 0);
+    const topCategory = [...categoryChartData].sort((a, b) => b.value - a.value)[0]?.name || "-";
+    const highestExpense = [...expenses].sort((a, b) => Number(b.amount) - Number(a.amount))[0]?.amount || 0;
+    const averageSpending = expenses.length ? totalExpense / expenses.length : 0;
+
+    const now = new Date();
+    const todayKey = now.toISOString().split("T")[0];
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    const todaySpending = expenses
+      .filter((item) => item.date === todayKey)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    const weekSpending = expenses
+      .filter((item) => new Date(item.date) >= weekStart)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    const monthSpending = expenses
+      .filter((item) => {
+        const d = new Date(item.date);
+        return d.getMonth() === month && d.getFullYear() === year;
+      })
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    return {
+      topCategory,
+      highestExpense,
+      averageSpending,
+      totalTransactions: expenses.length + incomes.length,
+      todaySpending,
+      weekSpending,
+      monthSpending,
     };
+  }, [expenses, incomes, categoryChartData]);
 
-    const addExpense = async () => {
-        if (!amount || !category) {
-            alert("Fill all fields");
-            return;
-        }
-
-        try {
-            await API.post("/expenses", {
-                amount,
-                category,
-                date: new Date().toISOString().split("T")[0],
-                note: "",
-            });
-
-            setAmount("");
-            setCategory("");
-
-            fetchData(); // refresh
-        } catch (err) {
-            alert("Failed to add expense ❌");
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    if (!data) return <h2>Loading...</h2>;
-
+  if (loading) {
     return (
-        <div style={{ padding: "20px" }}>
-            <h2>Dashboard</h2>
-
-            <p><b>Total Income:</b> ₹{data.total_income}</p>
-            <p><b>Total Expense:</b> ₹{data.total_expense}</p>
-            <p><b>Balance:</b> ₹{data.balance}</p>
-
-            <hr />
-
-            <h3>Add Expense</h3>
-
-            <input
-                placeholder="Amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-            />
-
-            <input
-                placeholder="Category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-            />
-
-            <button onClick={addExpense}>Add</button>
-
-            <hr />
-
-            <h3>Expenses</h3>
-
-            {expenses.map((e) => (
-                <div key={e.id} style={{ marginBottom: "10px" }}>
-                    ₹{e.amount} - {e.category}
-                    <button
-                        style={{ marginLeft: "10px" }}
-                        onClick={() => deleteExpense(e.id)}
-                    >
-                        Delete
-                    </button>
-                </div>
-            ))}
-        </div>
+      <AppShell title="Dashboard" subtitle="Overview of your finances">
+        <Loader label="Preparing your dashboard" />
+      </AppShell>
     );
+  }
+
+  return (
+    <AppShell title="Dashboard" subtitle="Smart manual finance tracker (no automation)">
+      <ToastMessage message={toast} type="error" onClose={() => setToast("")} />
+
+      <div className="stats-grid">
+        <StatCard label="Total Income" value={formatCurrency(summary?.total_income || 0)} colorClass="text-green" />
+        <StatCard label="Total Expense" value={formatCurrency(summary?.total_expense || 0)} colorClass="text-red" />
+        <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
+      </div>
+
+      <div className="stats-grid">
+        <StatCard label="Top Category" value={smartInsights.topCategory} />
+        <StatCard label="Highest Expense" value={formatCurrency(smartInsights.highestExpense)} colorClass="text-red" />
+        <StatCard label="Average Spending" value={formatCurrency(smartInsights.averageSpending)} />
+      </div>
+
+      <div className="stats-grid stats-grid-2">
+        <StatCard label="Today's Spending" value={formatCurrency(smartInsights.todaySpending)} colorClass="text-red" />
+        <StatCard label="This Week Spending" value={formatCurrency(smartInsights.weekSpending)} colorClass="text-red" />
+      </div>
+
+      <div className="stats-grid stats-grid-2">
+        <StatCard label="This Month Spending" value={formatCurrency(smartInsights.monthSpending)} colorClass="text-red" />
+        <StatCard label="Total Transactions" value={smartInsights.totalTransactions} />
+      </div>
+
+      <div className="grid-2">
+        <div className="panel">
+          <h3>Recent Transactions</h3>
+          {transactions.length === 0 ? (
+            <EmptyState message="No recent transactions yet" />
+          ) : (
+            <ul className="transaction-list">
+              {transactions.map((item) => (
+                <li key={`${item.type}-${item.id}`}>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{formatDate(item.date)}</p>
+                  </div>
+                  <span className={item.type === "income" ? "text-green" : "text-red"}>
+                    {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <BudgetProgress spent={summary?.total_expense || 0} balance={summary?.balance || 0} />
+      </div>
+
+      <div className="grid-2">
+        <div className="panel">
+          <h3>Category Analysis (with %)</h3>
+          {categoryChartData.length === 0 ? <EmptyState message="Add expenses to see chart data" /> : <PieLegend data={categoryChartData} />}
+        </div>
+
+        <div className="panel">
+          <h3>Monthly Expense Analysis</h3>
+          {monthlyChartData.length === 0 ? (
+            <EmptyState message="Monthly chart appears once expenses are added" />
+          ) : (
+            <MonthlyBarChart data={monthlyChartData} />
+          )}
+        </div>
+      </div>
+    </AppShell>
+  );
 }
