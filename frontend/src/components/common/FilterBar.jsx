@@ -1,9 +1,10 @@
-const CATEGORIES = ["All", "Food", "Travel", "Bills", "Shopping", "Health", "Education", "Other"];
+import { EXPENSE_CATEGORIES } from "../../constants/categories";
 
 export default function FilterBar({ value, onChange }) {
   return (
     <select className="input" value={value} onChange={(event) => onChange(event.target.value)}>
-      {CATEGORIES.map((category) => (
+      <option value="All">All</option>
+      {EXPENSE_CATEGORIES.map((category) => (
         <option key={category} value={category}>
           {category}
         </option>

@@ -28,12 +28,23 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-wrap">
+    <div className="auth-layout">
       <ToastMessage
         message={toast.message}
         type={toast.type}
         onClose={() => setToast({ message: "", type: "success" })}
       />
+
+      <div className="auth-hero">
+        <h1>Finance Dashboard</h1>
+        <p>Track expenses, monitor budget, and analyze trends with a modern dashboard.</p>
+        <ul>
+          <li>✔ Secure JWT authentication</li>
+          <li>✔ Expense + Income management</li>
+          <li>✔ Budget intelligence and analytics</li>
+        </ul>
+      </div>
+
       <form className="auth-card" onSubmit={handleLogin}>
         <h2>Welcome Back</h2>
         <p>Login to continue managing your finances.</p>

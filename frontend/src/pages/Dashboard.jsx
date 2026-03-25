@@ -5,6 +5,7 @@ import Loader from "../components/common/Loader";
 import StatCard from "../components/common/StatCard";
 import EmptyState from "../components/common/EmptyState";
 import ToastMessage from "../components/common/ToastMessage";
+import { formatCurrency, formatDate, getMonthKey } from "../utils/finance";
 
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899"];
 
@@ -30,13 +31,49 @@ function MonthlyBarChart({ data }) {
   return (
     <div className="bar-chart">
       {data.map((item) => (
-        <div key={item.month} className="bar-column">
+        <div key={item.month} className="bar-column" title={formatCurrency(item.total)}>
           <div className="bar-track">
             <div className="bar-fill" style={{ height: `${(item.total / max) * 100}%` }} />
           </div>
           <span>{item.month}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function BudgetProgress({ used }) {
+  const [budget, setBudget] = useState(() => Number(localStorage.getItem("monthly_budget") || 50000));
+
+  const usedPercent = Math.min(Math.round((used / Math.max(budget, 1)) * 100), 100);
+
+  const saveBudget = (event) => {
+    event.preventDefault();
+    localStorage.setItem("monthly_budget", String(budget));
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-title-row">
+        <h3>Budget Tracker</h3>
+        <span className={used > budget ? "chip chip-danger" : "chip chip-success"}>
+          {used > budget ? "Over Budget" : "On Track"}
+        </span>
+      </div>
+      <p className="muted">Spent {formatCurrency(used)} of {formatCurrency(budget)}</p>
+      <div className="progress-wrap">
+        <div className="progress-fill" style={{ width: `${usedPercent}%` }} />
+      </div>
+      <form className="inline-form" onSubmit={saveBudget}>
+        <input
+          className="input"
+          type="number"
+          min="1"
+          value={budget}
+          onChange={(event) => setBudget(Number(event.target.value))}
+        />
+        <button className="button" type="submit">Set Budget</button>
+      </form>
     </div>
   );
 }
@@ -90,12 +127,19 @@ export default function Dashboard() {
 
   const monthlyChartData = useMemo(() => {
     const map = expenses.reduce((acc, item) => {
-      const key = new Date(item.date).toLocaleString("default", { month: "short", year: "2-digit" });
+      const key = getMonthKey(item.date);
       acc[key] = (acc[key] || 0) + Number(item.amount);
       return acc;
     }, {});
     return Object.entries(map).map(([month, total]) => ({ month, total }));
   }, [expenses]);
+
+  const insight = useMemo(() => {
+    const totalExpense = expenses.reduce((acc, item) => acc + Number(item.amount), 0);
+    const topCategory = [...categoryChartData].sort((a, b) => b.value - a.value)[0]?.name || "-";
+    const avgDaily = expenses.length ? totalExpense / Math.max(expenses.length, 1) : 0;
+    return { totalExpense, topCategory, avgDaily };
+  }, [expenses, categoryChartData]);
 
   if (loading) {
     return (
@@ -106,13 +150,24 @@ export default function Dashboard() {
   }
 
   return (
-    <AppShell title="Dashboard" subtitle="Overview of your finances">
+    <AppShell title="Dashboard" subtitle="Portfolio-ready personal finance intelligence">
       <ToastMessage message={toast} type="error" onClose={() => setToast("")} />
 
       <div className="stats-grid">
-        <StatCard label="Total Income" value={`₹${summary?.total_income || 0}`} colorClass="text-green" />
-        <StatCard label="Total Expense" value={`₹${summary?.total_expense || 0}`} colorClass="text-red" />
-        <StatCard label="Balance" value={`₹${summary?.balance || 0}`} colorClass="text-blue" />
+        <StatCard label="Total Income" value={formatCurrency(summary?.total_income || 0)} colorClass="text-green" />
+        <StatCard label="Total Expense" value={formatCurrency(summary?.total_expense || 0)} colorClass="text-red" />
+        <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
+      </div>
+
+      <div className="stats-grid stats-grid-2">
+        <div className="stat-card">
+          <p>Top Expense Category</p>
+          <h3>{insight.topCategory}</h3>
+        </div>
+        <div className="stat-card">
+          <p>Average Transaction Spend</p>
+          <h3>{formatCurrency(insight.avgDaily)}</h3>
+        </div>
       </div>
 
       <div className="grid-2">
@@ -126,10 +181,10 @@ export default function Dashboard() {
                 <li key={`${item.type}-${item.id}`}>
                   <div>
                     <strong>{item.title}</strong>
-                    <p>{item.date}</p>
+                    <p>{formatDate(item.date)}</p>
                   </div>
                   <span className={item.type === "income" ? "text-green" : "text-red"}>
-                    {item.type === "income" ? "+" : "-"}₹{item.amount}
+                    {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
                   </span>
                 </li>
               ))}
@@ -137,19 +192,23 @@ export default function Dashboard() {
           )}
         </div>
 
+        <BudgetProgress used={summary?.total_expense || 0} />
+      </div>
+
+      <div className="grid-2">
         <div className="panel">
           <h3>Expense by Category</h3>
           {categoryChartData.length === 0 ? <EmptyState message="Add expenses to see chart data" /> : <PieLegend data={categoryChartData} />}
         </div>
-      </div>
 
-      <div className="panel">
-        <h3>Monthly Expenses</h3>
-        {monthlyChartData.length === 0 ? (
-          <EmptyState message="Monthly chart appears once expenses are added" />
-        ) : (
-          <MonthlyBarChart data={monthlyChartData} />
-        )}
+        <div className="panel">
+          <h3>Monthly Expenses</h3>
+          {monthlyChartData.length === 0 ? (
+            <EmptyState message="Monthly chart appears once expenses are added" />
+          ) : (
+            <MonthlyBarChart data={monthlyChartData} />
+          )}
+        </div>
       </div>
     </AppShell>
   );
