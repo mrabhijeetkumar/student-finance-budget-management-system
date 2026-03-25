@@ -165,6 +165,15 @@ export default function Expenses() {
 
   const highestExpense = useMemo(() => filteredExpenses.reduce((max, item) => Math.max(max, Number(item.amount)), 0), [filteredExpenses]);
 
+  const resetFilters = () => {
+    setSearch("");
+    setCategoryFilter("All");
+    setStartDate("");
+    setEndDate("");
+    setSortBy("date_desc");
+  };
+
+
   return (
     <AppShell title="Expenses" subtitle="Search, filter, export, and manage spending">
       <ToastMessage message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
@@ -203,11 +212,12 @@ export default function Expenses() {
           </select>
         </div>
 
-        <div className="toolbar toolbar-4">
+        <div className="toolbar toolbar-5">
           <input className="input" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
           <input className="input" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
           <button className="button button-ghost" onClick={exportCsv}>Export CSV</button>
           <button className="button button-ghost" onClick={exportPdf}>Export PDF</button>
+          <button className="button button-ghost" onClick={resetFilters}>Reset Filters</button>
         </div>
 
         {loading ? <Loader label="Loading expenses" /> : filteredExpenses.length === 0 ? <EmptyState message="No expenses match your filters" /> : (

@@ -6,6 +6,7 @@ from services.analytics_service import (
     generate_smart_insights,
     get_dashboard_analytics,
     predict_next_month_expense,
+    get_dashboard_kpis,
 )
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/dashboard")
@@ -57,3 +58,11 @@ def expense_prediction():
     db = get_db()
     prediction = predict_next_month_expense(db, g.user_id)
     return success_response("Expense prediction", prediction)
+
+
+@dashboard_bp.route("/kpis", methods=["GET"])
+@token_required
+def dashboard_kpis():
+    db = get_db()
+    kpis = get_dashboard_kpis(db, g.user_id)
+    return success_response("Dashboard KPIs", kpis)

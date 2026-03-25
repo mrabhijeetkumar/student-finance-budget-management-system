@@ -39,6 +39,7 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [insights, setInsights] = useState([]);
   const [prediction, setPrediction] = useState(null);
+  const [kpis, setKpis] = useState(null);
   const [budgetData, setBudgetData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
@@ -53,11 +54,12 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const month = budgetForm.month;
-      const [summaryRes, analyticsRes, insightsRes, predictionRes, budgetRes] = await Promise.all([
+      const [summaryRes, analyticsRes, insightsRes, predictionRes, kpisRes, budgetRes] = await Promise.all([
         API.get("/dashboard/summary"),
         API.get("/dashboard/analytics"),
         API.get("/dashboard/insights"),
         API.get("/dashboard/prediction"),
+        API.get("/dashboard/kpis"),
         API.get("/budgets", { params: { month } }),
       ]);
 
@@ -65,6 +67,7 @@ export default function Dashboard() {
       setAnalytics(analyticsRes.data.data);
       setInsights(insightsRes.data.data?.insights || []);
       setPrediction(predictionRes.data.data);
+      setKpis(kpisRes.data.data);
       setBudgetData(budgetRes.data.data);
     } catch {
       setToast("Failed to load dashboard data");
@@ -90,6 +93,16 @@ export default function Dashboard() {
       await loadDashboard();
     } catch (error) {
       setToast(error.response?.data?.message || "Failed to save budget");
+    }
+  };
+
+
+  const handleDeleteBudget = async (id) => {
+    try {
+      await API.delete(`/budgets/${id}`);
+      await loadDashboard();
+    } catch {
+      setToast("Unable to delete budget");
     }
   };
 
@@ -121,6 +134,11 @@ export default function Dashboard() {
         <StatCard label="Total Expense" value={formatCurrency(summary?.total_expense || 0)} colorClass="text-red" />
         <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
       </div>
+      <div className="stats-grid">
+        <StatCard label="Monthly Delta" value={formatCurrency(kpis?.delta_amount || 0)} colorClass={(kpis?.delta_amount || 0) > 0 ? "text-red" : "text-green"} />
+        <StatCard label="Delta %" value={`${kpis?.delta_percent || 0}%`} colorClass={(kpis?.delta_percent || 0) > 0 ? "text-red" : "text-green"} />
+        <StatCard label="Savings Rate" value={`${kpis?.savings_rate || 0}%`} colorClass="text-blue" />
+      </div>
 
       <div className="grid-2">
         <div className="panel">
@@ -150,7 +168,7 @@ export default function Dashboard() {
             {budgetData.items.map((item) => (
               <div key={item.id} className="budget-item">
                 <div className="panel-title-row">
-                  <strong>{item.category}</strong>
+                  <div className="budget-head"><strong>{item.category}</strong><button className="link-btn danger" onClick={() => handleDeleteBudget(item.id)}>Delete</button></div>
                   <span className={`chip ${item.status === "exceeded" ? "chip-danger" : item.status === "warning" ? "chip-warning" : "chip-success"}`}>
                     {item.status === "exceeded" ? "Exceeded" : item.status === "warning" ? "80% Warning" : "Safe"}
                   </span>

@@ -152,3 +152,37 @@ def expenses_to_csv(rows) -> str:
     for row in rows:
         writer.writerow([row["date"], row["category"], row["note"] or "", row["amount"]])
     return string_io.getvalue()
+
+
+def get_dashboard_kpis(db, user_id: int) -> dict:
+    expenses = db.execute(
+        "SELECT amount, date FROM expenses WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    incomes = db.execute(
+        "SELECT amount, date FROM incomes WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+
+    today = date.today()
+    current_month = f"{today.year}-{today.month:02d}"
+    prev_date = date(today.year - 1, 12, 1) if today.month == 1 else date(today.year, today.month - 1, 1)
+    previous_month = f"{prev_date.year}-{prev_date.month:02d}"
+
+    current_expense = sum(float(row["amount"]) for row in expenses if month_key(row["date"]) == current_month)
+    previous_expense = sum(float(row["amount"]) for row in expenses if month_key(row["date"]) == previous_month)
+    current_income = sum(float(row["amount"]) for row in incomes if month_key(row["date"]) == current_month)
+
+    delta = current_expense - previous_expense
+    delta_pct = (delta / previous_expense * 100) if previous_expense else 0
+    savings = current_income - current_expense
+    savings_rate = (savings / current_income * 100) if current_income else 0
+
+    return {
+        "current_month": current_month,
+        "current_expense": round(current_expense, 2),
+        "previous_expense": round(previous_expense, 2),
+        "delta_amount": round(delta, 2),
+        "delta_percent": round(delta_pct, 2),
+        "savings_rate": round(savings_rate, 2),
+    }
