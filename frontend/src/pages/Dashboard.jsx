@@ -27,17 +27,34 @@ function PieLegend({ data }) {
 
 function MonthlyBarChart({ data }) {
   const max = Math.max(...data.map((item) => item.total), 1);
+  const ticks = [1, 0.75, 0.5, 0.25].map((ratio) => Math.round(max * ratio));
 
   return (
-    <div className="bar-chart">
-      {data.map((item) => (
-        <div key={item.month} className="bar-column" title={formatCurrency(item.total)}>
-          <div className="bar-track">
-            <div className="bar-fill" style={{ height: `${(item.total / max) * 100}%` }} />
-          </div>
-          <span>{item.month}</span>
+    <div className="month-chart-wrap">
+      <div className="y-axis">
+        {ticks.map((tick) => (
+          <span key={tick}>{formatCurrency(tick)}</span>
+        ))}
+      </div>
+
+      <div className="bar-chart-grid">
+        {ticks.map((tick) => (
+          <div key={tick} className="grid-line" />
+        ))}
+
+        <div className="bar-chart">
+          {data.map((item) => (
+            <div key={item.month} className="bar-column" title={`${item.month}: ${formatCurrency(item.total)}`}>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ height: `${(item.total / max) * 100}%` }}>
+                  <span className="bar-value">{formatCurrency(item.total)}</span>
+                </div>
+              </div>
+              <span className="bar-label">{item.month}</span>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
@@ -137,11 +154,18 @@ export default function Dashboard() {
 
   const monthlyChartData = useMemo(() => {
     const map = expenses.reduce((acc, item) => {
-      const key = getMonthKey(item.date);
-      acc[key] = (acc[key] || 0) + Number(item.amount);
+      const date = new Date(item.date);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      if (!acc[key]) {
+        acc[key] = { month: getMonthKey(item.date), total: 0, ts: new Date(date.getFullYear(), date.getMonth(), 1).getTime() };
+      }
+      acc[key].total += Number(item.amount);
       return acc;
     }, {});
-    return Object.entries(map).map(([month, total]) => ({ month, total }));
+
+    return Object.values(map)
+      .sort((a, b) => a.ts - b.ts)
+      .map(({ month, total }) => ({ month, total }));
   }, [expenses]);
 
   const smartInsights = useMemo(() => {

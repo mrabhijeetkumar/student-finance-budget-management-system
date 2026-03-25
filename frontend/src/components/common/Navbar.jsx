@@ -37,6 +37,11 @@ export default function Navbar({ title, subtitle }) {
       </div>
 
       <div className="topbar-actions">
+        <button className="theme-btn" onClick={toggleTheme}>
+          <span>{theme === "dark" ? "☀️" : "🌙"}</span>
+          <span>{theme === "dark" ? "Light" : "Dark"}</span>
+        </button>
+
         <p className="topbar-date">{new Date().toLocaleDateString()}</p>
 
         <div className="profile-menu" ref={menuRef}>
@@ -55,11 +60,7 @@ export default function Navbar({ title, subtitle }) {
                   <p>{userEmail}</p>
                 </div>
               </div>
-
-              <button className="menu-btn" onClick={toggleTheme}>
-                <span>{theme === "dark" ? "☀️" : "🌙"}</span>
-                <span>{theme === "dark" ? "Switch to Light" : "Switch to Dark"}</span>
-              </button>
+              <p className="muted">Member since today</p>
             </div>
           ) : null}
         </div>
