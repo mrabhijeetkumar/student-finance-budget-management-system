@@ -1,14 +1,20 @@
 from flask_cors import CORS
 from config import Config
+from routes.expense_routes import expense_bp
 from utils.db import close_db, init_db
 from flask import Flask, jsonify, g
 from middleware.auth_middleware import token_required
 from routes.auth_routes import auth_bp
+from routes.income_routes import income_bp
+from routes.dashboard_routes import dashboard_bp
 import os
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
+    app.register_blueprint(expense_bp)
+    app.register_blueprint(income_bp)
+    app.register_blueprint(dashboard_bp)
 
     CORS(app)
 
