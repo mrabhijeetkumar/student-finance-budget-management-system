@@ -1,13 +1,25 @@
-export default function Navbar({ onLogout }) {
-    return (
-        <nav className="bg-blue-600 text-white px-4 py-2 flex justify-between items-center">
-            <span className="font-bold text-lg">Student Finance Dashboard</span>
-            <button
-                onClick={onLogout}
-                className="bg-white text-blue-600 px-3 py-1 rounded"
-            >
-                Logout
-            </button>
-        </nav>
-    );
+import useTheme from "../../hooks/useTheme";
+
+export default function Navbar({ title, subtitle }) {
+  const { theme, toggleTheme } = useTheme();
+  const userName = localStorage.getItem("user_name") || "User";
+
+  return (
+    <header className="topbar">
+      <div>
+        <h2>{title}</h2>
+        {subtitle ? <p>{subtitle}</p> : null}
+      </div>
+
+      <div className="topbar-actions">
+        <div className="user-chip">
+          <span>{userName}</span>
+        </div>
+        <button className="button button-ghost" onClick={toggleTheme}>
+          {theme === "dark" ? "Light Mode" : "Dark Mode"}
+        </button>
+        <p className="topbar-date">{new Date().toLocaleDateString()}</p>
+      </div>
+    </header>
+  );
 }
