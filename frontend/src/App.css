@@ -887,3 +887,58 @@ body.theme-dark .user-chip {
   color: var(--muted);
   font-size: 13px;
 }
+
+body {
+  background: radial-gradient(circle at 10% 10%, rgba(37, 99, 235, 0.2), transparent 32%), radial-gradient(circle at 90% 90%, rgba(14, 165, 233, 0.16), transparent 34%), var(--bg);
+}
+
+.glass-panel,
+.stat-card {
+  backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
+}
+
+body.theme-dark .glass-panel,
+body.theme-dark .stat-card {
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.8));
+}
+
+.donut-wrap {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.donut-chart {
+  width: 220px;
+  height: 220px;
+  justify-self: center;
+}
+
+.donut-total-label {
+  fill: var(--muted);
+  font-size: 14px;
+}
+
+.donut-total-value {
+  fill: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.trend-axis-label {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.trend-point { stroke: #fff; stroke-width: 2; }
+.trend-point-income { fill: #22c55e; }
+.trend-point-expense { fill: #ef4444; }
+.trend-point-savings { fill: #3b82f6; }
+
+@media (max-width: 980px) {
+  .donut-wrap {
+    grid-template-columns: 1fr;
+  }
+}
