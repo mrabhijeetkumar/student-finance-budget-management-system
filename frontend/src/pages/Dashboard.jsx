@@ -183,11 +183,6 @@ export default function Dashboard() {
     };
   }, [expenses, incomes, categoryChartData]);
 
-  const profile = {
-    name: localStorage.getItem("user_name") || "User",
-    email: localStorage.getItem("user_email") || "No email",
-  };
-
   if (loading) {
     return (
       <AppShell title="Dashboard" subtitle="Overview of your finances">
@@ -199,12 +194,6 @@ export default function Dashboard() {
   return (
     <AppShell title="Dashboard" subtitle="Smart manual finance tracker (no automation)">
       <ToastMessage message={toast} type="error" onClose={() => setToast("")} />
-
-      <div className="panel profile-panel">
-        <h3>User Profile</h3>
-        <p><strong>Name:</strong> {profile.name}</p>
-        <p><strong>Email:</strong> {profile.email}</p>
-      </div>
 
       <div className="stats-grid">
         <StatCard label="Total Income" value={formatCurrency(summary?.total_income || 0)} colorClass="text-green" />

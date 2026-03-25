@@ -1,4 +1,5 @@
 export const EXPENSE_CATEGORIES = [
+  "Rent",
   "Food",
   "Travel",
   "Bills",
@@ -6,6 +7,5 @@ export const EXPENSE_CATEGORIES = [
   "Health",
   "Education",
   "Entertainment",
-  "Rent",
   "Other",
 ];

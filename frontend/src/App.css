@@ -106,16 +106,100 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
-.topbar-date,
-.user-chip {
+.topbar-date {
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
   padding: 8px 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-trigger {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(37, 99, 235, 0.14);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.avatar-lg {
+  width: 42px;
+  height: 42px;
+  font-size: 15px;
+}
+
+.profile-name {
+  font-weight: 600;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-caret {
+  color: var(--muted);
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 250px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+  z-index: 60;
+  display: grid;
+  gap: 10px;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.menu-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
   font-weight: 600;
 }
 
@@ -138,18 +222,13 @@ body {
 
 .panel h3 {
   margin: 2px 0 14px;
-  font-size: 30px;
+  font-size: 24px;
 }
 
 .panel-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.profile-panel p {
-  margin: 6px 0;
-  color: var(--muted);
 }
 
 .stats-grid {
@@ -178,7 +257,7 @@ body {
 
 .stat-card h3 {
   margin: 8px 0 0;
-  font-size: 34px;
+  font-size: 2.15rem;
 }
 
 .text-green { color: var(--success); }
@@ -515,7 +594,6 @@ select {
   .auth-layout {
     grid-template-columns: 1fr;
   }
-}
 
   .auth-card {
     width: 100%;
@@ -542,6 +620,15 @@ select {
 
   .topbar {
     flex-direction: column;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .profile-name {
+    max-width: 88px;
   }
 
   .stats-grid,
