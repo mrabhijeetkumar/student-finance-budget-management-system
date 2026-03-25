@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import API, { setAuthToken } from "../services/api";
 import ToastMessage from "../components/common/ToastMessage";
 
@@ -9,6 +9,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" });
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.message) {
+      setToast({ message: location.state.message, type: "success" });
+    }
+  }, [location.state]);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -16,8 +23,10 @@ export default function Login() {
       setLoading(true);
       const response = await API.post("/login", { email, password });
       const token = response.data.data.token;
+      const user = response.data.data.user;
 
       localStorage.setItem("token", token);
+      localStorage.setItem("user_email", user.email);
       setAuthToken(token);
       navigate("/dashboard", { replace: true });
     } catch {
@@ -41,7 +50,7 @@ export default function Login() {
         <ul>
           <li>✔ Secure JWT authentication</li>
           <li>✔ Expense + Income management</li>
-          <li>✔ Budget intelligence and analytics</li>
+          <li>✔ 100% manual transaction control</li>
         </ul>
       </div>
 
@@ -70,6 +79,10 @@ export default function Login() {
         <button className="button" type="submit" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
         </button>
+
+        <p className="auth-switch">
+          New user? <Link to="/signup">Create an account</Link>
+        </p>
       </form>
     </div>
   );

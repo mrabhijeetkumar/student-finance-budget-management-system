@@ -42,25 +42,34 @@ function MonthlyBarChart({ data }) {
   );
 }
 
-function BudgetProgress({ used }) {
-  const [budget, setBudget] = useState(() => Number(localStorage.getItem("monthly_budget") || 50000));
+function BudgetProgress({ spent, balance }) {
+  const userEmail = localStorage.getItem("user_email") || "guest";
+  const budgetStorageKey = `monthly_budget_${userEmail}`;
+  const [budget, setBudget] = useState(() => Number(localStorage.getItem(budgetStorageKey) || 50000));
+  const [savedMessage, setSavedMessage] = useState("");
 
-  const usedPercent = Math.min(Math.round((used / Math.max(budget, 1)) * 100), 100);
+
+  const usedPercent = Math.min(Math.round((spent / Math.max(budget, 1)) * 100), 100);
+  const remaining = Math.max(budget - spent, 0);
 
   const saveBudget = (event) => {
     event.preventDefault();
-    localStorage.setItem("monthly_budget", String(budget));
+    localStorage.setItem(budgetStorageKey, String(budget));
+    setSavedMessage("Manual budget saved");
+    setTimeout(() => setSavedMessage(""), 1500);
   };
 
   return (
     <div className="panel">
       <div className="panel-title-row">
-        <h3>Budget Tracker</h3>
-        <span className={used > budget ? "chip chip-danger" : "chip chip-success"}>
-          {used > budget ? "Over Budget" : "On Track"}
+        <h3>Manual Budget Tracker</h3>
+        <span className={spent > budget ? "chip chip-danger" : "chip chip-success"}>
+          {spent > budget ? "Over Budget" : "On Track"}
         </span>
       </div>
-      <p className="muted">Spent {formatCurrency(used)} of {formatCurrency(budget)}</p>
+      <p className="muted">Spent: {formatCurrency(spent)}</p>
+      <p className="muted">Remaining: {formatCurrency(remaining)}</p>
+      <p className="muted">Current Balance: {formatCurrency(balance)}</p>
       <div className="progress-wrap">
         <div className="progress-fill" style={{ width: `${usedPercent}%` }} />
       </div>
@@ -74,6 +83,7 @@ function BudgetProgress({ used }) {
         />
         <button className="button" type="submit">Set Budget</button>
       </form>
+      {savedMessage ? <p className="muted">{savedMessage}</p> : null}
     </div>
   );
 }
@@ -134,12 +144,44 @@ export default function Dashboard() {
     return Object.entries(map).map(([month, total]) => ({ month, total }));
   }, [expenses]);
 
-  const insight = useMemo(() => {
+  const smartInsights = useMemo(() => {
     const totalExpense = expenses.reduce((acc, item) => acc + Number(item.amount), 0);
     const topCategory = [...categoryChartData].sort((a, b) => b.value - a.value)[0]?.name || "-";
-    const avgDaily = expenses.length ? totalExpense / Math.max(expenses.length, 1) : 0;
-    return { totalExpense, topCategory, avgDaily };
-  }, [expenses, categoryChartData]);
+    const highestExpense = [...expenses].sort((a, b) => Number(b.amount) - Number(a.amount))[0]?.amount || 0;
+    const averageSpending = expenses.length ? totalExpense / expenses.length : 0;
+
+    const now = new Date();
+    const todayKey = now.toISOString().split("T")[0];
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    const todaySpending = expenses
+      .filter((item) => item.date === todayKey)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    const weekSpending = expenses
+      .filter((item) => new Date(item.date) >= weekStart)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    const monthSpending = expenses
+      .filter((item) => {
+        const d = new Date(item.date);
+        return d.getMonth() === month && d.getFullYear() === year;
+      })
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    return {
+      topCategory,
+      highestExpense,
+      averageSpending,
+      totalTransactions: expenses.length + incomes.length,
+      todaySpending,
+      weekSpending,
+      monthSpending,
+    };
+  }, [expenses, incomes, categoryChartData]);
 
   if (loading) {
     return (
@@ -150,7 +192,7 @@ export default function Dashboard() {
   }
 
   return (
-    <AppShell title="Dashboard" subtitle="Portfolio-ready personal finance intelligence">
+    <AppShell title="Dashboard" subtitle="Smart manual finance tracker (no automation)">
       <ToastMessage message={toast} type="error" onClose={() => setToast("")} />
 
       <div className="stats-grid">
@@ -159,15 +201,20 @@ export default function Dashboard() {
         <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
       </div>
 
+      <div className="stats-grid">
+        <StatCard label="Top Category" value={smartInsights.topCategory} />
+        <StatCard label="Highest Expense" value={formatCurrency(smartInsights.highestExpense)} colorClass="text-red" />
+        <StatCard label="Average Spending" value={formatCurrency(smartInsights.averageSpending)} />
+      </div>
+
       <div className="stats-grid stats-grid-2">
-        <div className="stat-card">
-          <p>Top Expense Category</p>
-          <h3>{insight.topCategory}</h3>
-        </div>
-        <div className="stat-card">
-          <p>Average Transaction Spend</p>
-          <h3>{formatCurrency(insight.avgDaily)}</h3>
-        </div>
+        <StatCard label="Today's Spending" value={formatCurrency(smartInsights.todaySpending)} colorClass="text-red" />
+        <StatCard label="This Week Spending" value={formatCurrency(smartInsights.weekSpending)} colorClass="text-red" />
+      </div>
+
+      <div className="stats-grid stats-grid-2">
+        <StatCard label="This Month Spending" value={formatCurrency(smartInsights.monthSpending)} colorClass="text-red" />
+        <StatCard label="Total Transactions" value={smartInsights.totalTransactions} />
       </div>
 
       <div className="grid-2">
@@ -192,17 +239,17 @@ export default function Dashboard() {
           )}
         </div>
 
-        <BudgetProgress used={summary?.total_expense || 0} />
+        <BudgetProgress spent={summary?.total_expense || 0} balance={summary?.balance || 0} />
       </div>
 
       <div className="grid-2">
         <div className="panel">
-          <h3>Expense by Category</h3>
+          <h3>Category Analysis (with %)</h3>
           {categoryChartData.length === 0 ? <EmptyState message="Add expenses to see chart data" /> : <PieLegend data={categoryChartData} />}
         </div>
 
         <div className="panel">
-          <h3>Monthly Expenses</h3>
+          <h3>Monthly Expense Analysis</h3>
           {monthlyChartData.length === 0 ? (
             <EmptyState message="Monthly chart appears once expenses are added" />
           ) : (
