@@ -4,9 +4,11 @@ from flask_cors import CORS
 
 from config import Config
 from routes.auth_routes import auth_bp
+from routes.budget_routes import budget_bp
 from routes.dashboard_routes import dashboard_bp
 from routes.expense_routes import expense_bp
 from routes.income_routes import income_bp
+from routes.report_routes import report_bp
 from utils.db import close_db, init_db
 
 
@@ -33,6 +35,8 @@ def create_app():
     app.register_blueprint(expense_bp)
     app.register_blueprint(income_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(budget_bp)
+    app.register_blueprint(report_bp)
 
     app.teardown_appcontext(close_db)
     return app
