@@ -1,5 +1,6 @@
 Flask
 Flask-Cors
+gunicorn
 PyJWT
 python-dotenv
 psycopg2-binary
