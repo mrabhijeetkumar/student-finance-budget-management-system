@@ -1,3 +1,4 @@
+
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -10,7 +11,6 @@ from routes.expense_routes import expense_bp
 from routes.income_routes import income_bp
 from routes.report_routes import report_bp
 from utils.db import close_db, init_db
-
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
@@ -31,6 +31,10 @@ def create_app():
         init_db()
         return jsonify({"success": True, "message": "Database initialized successfully"})
 
+    @app.route("/")
+    def root():
+        return jsonify({"message": "API is running 🚀"})
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(expense_bp)
     app.register_blueprint(income_bp)
@@ -40,7 +44,6 @@ def create_app():
 
     app.teardown_appcontext(close_db)
     return app
-
 
 app = create_app()
 
