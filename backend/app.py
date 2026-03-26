@@ -14,13 +14,6 @@ from routes.ping_routes import ping_bp
 from utils.db import close_db, init_db
 
 def create_app():
-                @app.route("/ping", methods=["GET"])
-                def ping():
-                    return jsonify({"status": "ok"})
-            app.register_blueprint(ping_bp)
-        @app.route("/ping", methods=["GET"])
-        def ping():
-            return jsonify({"status": "ok"})
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
 
@@ -29,6 +22,10 @@ def create_app():
 
     with app.app_context():
         init_db()
+
+    @app.route("/ping", methods=["GET"])
+    def ping():
+        return jsonify({"status": "ok"})
 
     @app.route("/api/health", methods=["GET"])
     def health_check():
@@ -49,6 +46,7 @@ def create_app():
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(budget_bp)
     app.register_blueprint(report_bp)
+    app.register_blueprint(ping_bp)
 
     app.teardown_appcontext(close_db)
     return app
