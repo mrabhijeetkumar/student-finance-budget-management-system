@@ -40,12 +40,13 @@ def register():
 
     hashed_password = generate_password_hash(password)
     cursor = db.execute(
-        "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+        "INSERT INTO users (name, email, password) VALUES (?, ?, ?) RETURNING id",
         (name, email, hashed_password),
     )
+    inserted = cursor.fetchone()
     db.commit()
 
-    user = {"id": cursor.lastrowid, "name": name, "email": email}
+    user = {"id": inserted["id"], "name": name, "email": email}
     token = generate_token(user)
 
     return success_response("User registered successfully", {"token": token, "user": user}, 201)
