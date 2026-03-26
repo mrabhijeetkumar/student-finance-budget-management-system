@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { setAuthToken } from "../../services/api";
+import fintrackLogo from "../../assets/fintrackpro.png";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -23,7 +24,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
-        <img src={require("../../assets/fintrackpro.png")} alt="FinTrack Pro Logo" style={{ width: 120, height: 80, marginBottom: 8, objectFit: "contain" }} />
+        <img src={fintrackLogo} alt="FinTrack Pro" style={{ width: 120, height: 80, marginBottom: 8, objectFit: "contain" }} />
       </div>
       <p className="sidebar-caption">Industrial Finance Suite</p>
       <nav className="sidebar-nav">
