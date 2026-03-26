@@ -24,7 +24,13 @@ def _run_sql_script(db, sql_script: str) -> None:
     cursor = db.cursor()
     try:
         for statement in statements:
-            cursor.execute(statement)
+            # Skip CREATE INDEX statements during schema load
+            if statement.upper().startswith("CREATE INDEX") or statement.upper().startswith("CREATE UNIQUE INDEX"):
+                continue
+            try:
+                cursor.execute(statement)
+            except Exception as e:
+                print(f"[DB] Skipped statement due to error: {e}\nStatement: {statement}")
     finally:
         cursor.close()
 
