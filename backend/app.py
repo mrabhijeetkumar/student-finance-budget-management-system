@@ -10,9 +10,17 @@ from routes.dashboard_routes import dashboard_bp
 from routes.expense_routes import expense_bp
 from routes.income_routes import income_bp
 from routes.report_routes import report_bp
+from routes.ping_routes import ping_bp
 from utils.db import close_db, init_db
 
 def create_app():
+                @app.route("/ping", methods=["GET"])
+                def ping():
+                    return jsonify({"status": "ok"})
+            app.register_blueprint(ping_bp)
+        @app.route("/ping", methods=["GET"])
+        def ping():
+            return jsonify({"status": "ok"})
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
 
