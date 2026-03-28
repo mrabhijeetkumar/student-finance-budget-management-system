@@ -8,6 +8,7 @@ import EmptyState from "../components/common/EmptyState";
 import ToastMessage from "../components/common/ToastMessage";
 import { EXPENSE_CATEGORIES } from "../constants/categories";
 import { formatCurrency } from "../utils/finance";
+import { getDashboardCache, setDashboardCache } from "../services/dashboardCache";
 
 function ChartCanvas({ type, data, options }) {
   const canvasRef = useRef(null);
@@ -51,11 +52,26 @@ export default function Dashboard() {
   });
 
   const loadDashboard = async () => {
-    try {
+    const month = budgetForm.month;
+    const cachedOverview = getDashboardCache(month);
+
+    if (cachedOverview) {
+      setSummary(cachedOverview.summary || null);
+      setAnalytics(cachedOverview.analytics || null);
+      setInsights(cachedOverview.insights || []);
+      setPrediction(cachedOverview.prediction || null);
+      setKpis(cachedOverview.kpis || null);
+      setBudgetData(cachedOverview.budgets || null);
+      setLoading(false);
+    } else {
       setLoading(true);
-      const month = budgetForm.month;
+    }
+
+    try {
       const overviewRes = await API.get("/dashboard/overview", { params: { month } });
       const overview = overviewRes.data.data || {};
+
+      setDashboardCache(month, overview);
 
       setSummary(overview.summary || null);
       setAnalytics(overview.analytics || null);

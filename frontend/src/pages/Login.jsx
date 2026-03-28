@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import ToastMessage from "../components/common/ToastMessage";
-import API, { setAuthToken } from "../services/api";
+import API, { setAuthToken, warmupBackend } from "../services/api";
+import { setDashboardCache } from "../services/dashboardCache";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -13,6 +14,8 @@ export default function Login() {
   const location = useLocation();
 
   useEffect(() => {
+    warmupBackend();
+
     if (location.state?.message) {
       setToast({ message: location.state.message, type: "success" });
     }
@@ -37,10 +40,24 @@ export default function Login() {
       localStorage.setItem("user_email", user.email);
       localStorage.setItem("user_name", user.name || "User");
       setAuthToken(token);
+      const month = new Date().toISOString().slice(0, 7);
+
+      API.get("/dashboard/overview", {
+        params: { month },
+        timeout: 10000,
+      })
+        .then((overviewRes) => {
+          setDashboardCache(month, overviewRes.data?.data || null);
+        })
+        .catch(() => null);
+
       navigate("/dashboard", { replace: true });
     } catch (error) {
+      const isTimeout = error.code === "ECONNABORTED";
       setToast({
-        message: error.response?.data?.message || "Login failed. Please try again.",
+        message: isTimeout
+          ? "Server is taking longer than expected. Please try again."
+          : error.response?.data?.message || "Login failed. Please try again.",
         type: "error",
       });
     } finally {
@@ -91,6 +108,10 @@ export default function Login() {
         <button className="button" type="submit" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
         </button>
+
+        <p className="auth-forgot">
+          <Link to="/forgot-password">Forgot Password?</Link>
+        </p>
 
         <p className="auth-switch">
           New user? <Link to="/signup">Create an account</Link>

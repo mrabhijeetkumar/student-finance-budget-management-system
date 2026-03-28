@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { setAuthToken } from "../../services/api";
+import { clearDashboardCache } from "../../services/dashboardCache";
 import fintrackLogo from "../../assets/fintrackpro.png";
 
 const links = [
@@ -17,6 +18,7 @@ export default function Sidebar() {
     localStorage.removeItem("token");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_name");
+    clearDashboardCache();
     setAuthToken(null);
     navigate("/login", { replace: true });
   };

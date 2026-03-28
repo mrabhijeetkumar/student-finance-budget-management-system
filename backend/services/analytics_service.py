@@ -27,16 +27,8 @@ def _resolve_month(month: str | None) -> str:
     return f"{today.year}-{today.month:02d}"
 
 
-def get_dashboard_analytics(db, user_id: int, month: str | None = None) -> dict:
+def build_dashboard_analytics(expenses, incomes, month: str | None = None) -> dict:
     target_month = _resolve_month(month)
-    expenses = db.execute(
-        "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
-        (user_id,),
-    ).fetchall()
-    incomes = db.execute(
-        "SELECT amount, date FROM incomes WHERE user_id = ? ORDER BY date ASC",
-        (user_id,),
-    ).fetchall()
 
     total_expenses = float(sum(row["amount"] for row in expenses))
 
@@ -96,16 +88,23 @@ def get_dashboard_analytics(db, user_id: int, month: str | None = None) -> dict:
     }
 
 
-def _month_total(expenses, month: str) -> float:
-    return sum(float(row["amount"]) for row in expenses if month_key(row["date"]) == month)
-
-
-def generate_smart_insights(db, user_id: int) -> list[str]:
+def get_dashboard_analytics(db, user_id: int, month: str | None = None) -> dict:
     expenses = db.execute(
         "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
         (user_id,),
     ).fetchall()
+    incomes = db.execute(
+        "SELECT amount, date FROM incomes WHERE user_id = ? ORDER BY date ASC",
+        (user_id,),
+    ).fetchall()
+    return build_dashboard_analytics(expenses, incomes, month)
 
+
+def _month_total(expenses, month: str) -> float:
+    return sum(float(row["amount"]) for row in expenses if month_key(row["date"]) == month)
+
+
+def build_smart_insights(expenses) -> list[str]:
     if not expenses:
         return ["No expenses found yet. Start adding records for personalized insights."]
 
@@ -139,12 +138,15 @@ def generate_smart_insights(db, user_id: int) -> list[str]:
     return insights
 
 
-def predict_next_month_expense(db, user_id: int) -> dict:
-    rows = db.execute(
+def generate_smart_insights(db, user_id: int) -> list[str]:
+    expenses = db.execute(
         "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
         (user_id,),
     ).fetchall()
+    return build_smart_insights(expenses)
 
+
+def build_expense_prediction(rows) -> dict:
     monthly = defaultdict(float)
     category_monthly = defaultdict(float)
     for row in rows:
@@ -184,6 +186,14 @@ def predict_next_month_expense(db, user_id: int) -> dict:
     return {"predicted_expense": round(max(pred, 0), 2), "suggestion": suggestion}
 
 
+def predict_next_month_expense(db, user_id: int) -> dict:
+    rows = db.execute(
+        "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
+        (user_id,),
+    ).fetchall()
+    return build_expense_prediction(rows)
+
+
 def expenses_to_csv(rows) -> str:
     import io
     string_io = io.StringIO()
@@ -194,16 +204,7 @@ def expenses_to_csv(rows) -> str:
     return string_io.getvalue()
 
 
-def get_dashboard_kpis(db, user_id: int) -> dict:
-    expenses = db.execute(
-        "SELECT amount, date FROM expenses WHERE user_id = ?",
-        (user_id,),
-    ).fetchall()
-    incomes = db.execute(
-        "SELECT amount, date FROM incomes WHERE user_id = ?",
-        (user_id,),
-    ).fetchall()
-
+def build_dashboard_kpis(expenses, incomes) -> dict:
     today = date.today()
     current_month = f"{today.year}-{today.month:02d}"
     prev_date = date(today.year - 1, 12, 1) if today.month == 1 else date(today.year, today.month - 1, 1)
@@ -226,3 +227,15 @@ def get_dashboard_kpis(db, user_id: int) -> dict:
         "delta_percent": round(delta_pct, 2),
         "savings_rate": round(savings_rate, 2),
     }
+
+
+def get_dashboard_kpis(db, user_id: int) -> dict:
+    expenses = db.execute(
+        "SELECT amount, date FROM expenses WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    incomes = db.execute(
+        "SELECT amount, date FROM incomes WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    return build_dashboard_kpis(expenses, incomes)

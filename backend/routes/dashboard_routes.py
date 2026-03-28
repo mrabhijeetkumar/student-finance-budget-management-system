@@ -4,10 +4,14 @@ from utils.db import get_db
 from utils.response_helper import success_response
 from middleware.auth_middleware import token_required
 from services.analytics_service import (
+    build_dashboard_analytics,
+    build_dashboard_kpis,
+    build_expense_prediction,
+    build_smart_insights,
     generate_smart_insights,
     get_dashboard_analytics,
-    predict_next_month_expense,
     get_dashboard_kpis,
+    predict_next_month_expense,
 )
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/dashboard")
@@ -86,10 +90,19 @@ def dashboard_overview():
         (g.user_id,),
     ).fetchone()["total"]
 
-    analytics = get_dashboard_analytics(db, g.user_id, month=month)
-    insights = generate_smart_insights(db, g.user_id)
-    prediction = predict_next_month_expense(db, g.user_id)
-    kpis = get_dashboard_kpis(db, g.user_id)
+    expenses = db.execute(
+        "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
+        (g.user_id,),
+    ).fetchall()
+    incomes = db.execute(
+        "SELECT amount, date FROM incomes WHERE user_id = ? ORDER BY date ASC",
+        (g.user_id,),
+    ).fetchall()
+
+    analytics = build_dashboard_analytics(expenses, incomes, month=month)
+    insights = build_smart_insights(expenses)
+    prediction = build_expense_prediction(expenses)
+    kpis = build_dashboard_kpis(expenses, incomes)
 
     budget_rows = db.execute(
         "SELECT id, month, category, amount FROM budgets WHERE user_id = ? AND month = ? ORDER BY category ASC",
