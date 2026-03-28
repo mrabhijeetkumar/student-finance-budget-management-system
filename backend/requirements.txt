@@ -1,5 +1,6 @@
 Flask
 Flask-Cors
+Flask-Compress
 gunicorn
 PyJWT
 python-dotenv

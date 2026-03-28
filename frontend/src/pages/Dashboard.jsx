@@ -54,21 +54,15 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const month = budgetForm.month;
-      const [summaryRes, analyticsRes, insightsRes, predictionRes, kpisRes, budgetRes] = await Promise.all([
-        API.get("/dashboard/summary"),
-        API.get("/dashboard/analytics"),
-        API.get("/dashboard/insights"),
-        API.get("/dashboard/prediction"),
-        API.get("/dashboard/kpis"),
-        API.get("/budgets", { params: { month } }),
-      ]);
+      const overviewRes = await API.get("/dashboard/overview", { params: { month } });
+      const overview = overviewRes.data.data || {};
 
-      setSummary(summaryRes.data.data);
-      setAnalytics(analyticsRes.data.data);
-      setInsights(insightsRes.data.data?.insights || []);
-      setPrediction(predictionRes.data.data);
-      setKpis(kpisRes.data.data);
-      setBudgetData(budgetRes.data.data);
+      setSummary(overview.summary || null);
+      setAnalytics(overview.analytics || null);
+      setInsights(overview.insights || []);
+      setPrediction(overview.prediction || null);
+      setKpis(overview.kpis || null);
+      setBudgetData(overview.budgets || null);
     } catch {
       setToast("Failed to load dashboard data");
     } finally {

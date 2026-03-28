@@ -2,6 +2,7 @@
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_compress import Compress
 
 from config import Config
 from routes.auth_routes import auth_bp
@@ -18,6 +19,7 @@ def create_app():
     app.config.from_object(Config)
 
     CORS(app)
+    Compress(app)
     os.makedirs(app.instance_path, exist_ok=True)
 
     with app.app_context():
