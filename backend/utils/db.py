@@ -5,6 +5,8 @@ from pathlib import Path
 
 from flask import current_app, g
 
+_pg_pool = None
+
 
 def _resolve_database_path() -> str:
     raw_path = current_app.config["DATABASE_PATH"]
@@ -60,14 +62,20 @@ class DatabaseConnection:
 
 
 def _connect_postgres(database_url: str) -> DatabaseConnection:
-    import psycopg2
+    from psycopg2.pool import SimpleConnectionPool
     from psycopg2.extras import RealDictCursor
 
-    conn = psycopg2.connect(
-        database_url,
-        sslmode=current_app.config.get("DB_SSLMODE", "require"),
-        cursor_factory=RealDictCursor,
-    )
+    global _pg_pool
+    if _pg_pool is None:
+        _pg_pool = SimpleConnectionPool(
+            minconn=current_app.config.get("DB_POOL_MIN_CONN", 1),
+            maxconn=current_app.config.get("DB_POOL_MAX_CONN", 10),
+            dsn=database_url,
+            sslmode=current_app.config.get("DB_SSLMODE", "require"),
+            cursor_factory=RealDictCursor,
+        )
+
+    conn = _pg_pool.getconn()
     conn.autocommit = False
     return DatabaseConnection(conn, is_postgres=True)
 
@@ -85,6 +93,7 @@ def _connect_sqlite() -> DatabaseConnection:
 def get_db():
     if "db" not in g:
         database_url = current_app.config.get("DATABASE_URL")
+        g.db_is_pooled = bool(database_url)
         g.db = _connect_postgres(database_url) if database_url else _connect_sqlite()
 
     return g.db
@@ -92,10 +101,16 @@ def get_db():
 
 def close_db(e=None):
     db = g.pop("db", None)
+    db_is_pooled = g.pop("db_is_pooled", False)
     if db is not None:
         if e:
             db.rollback()
-        db.close()
+        if db_is_pooled:
+            global _pg_pool
+            if _pg_pool is not None:
+                _pg_pool.putconn(db._conn)
+        else:
+            db.close()
 
 
 def init_db():

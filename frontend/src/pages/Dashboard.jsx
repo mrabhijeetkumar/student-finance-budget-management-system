@@ -54,21 +54,15 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const month = budgetForm.month;
-      const [summaryRes, analyticsRes, insightsRes, predictionRes, kpisRes, budgetRes] = await Promise.all([
-        API.get("/dashboard/summary"),
-        API.get("/dashboard/analytics"),
-        API.get("/dashboard/insights"),
-        API.get("/dashboard/prediction"),
-        API.get("/dashboard/kpis"),
-        API.get("/budgets", { params: { month } }),
-      ]);
+      const overviewRes = await API.get("/dashboard/overview", { params: { month } });
+      const overview = overviewRes.data.data || {};
 
-      setSummary(summaryRes.data.data);
-      setAnalytics(analyticsRes.data.data);
-      setInsights(insightsRes.data.data?.insights || []);
-      setPrediction(predictionRes.data.data);
-      setKpis(kpisRes.data.data);
-      setBudgetData(budgetRes.data.data);
+      setSummary(overview.summary || null);
+      setAnalytics(overview.analytics || null);
+      setInsights(overview.insights || []);
+      setPrediction(overview.prediction || null);
+      setKpis(overview.kpis || null);
+      setBudgetData(overview.budgets || null);
     } catch {
       setToast("Failed to load dashboard data");
     } finally {
@@ -117,8 +111,27 @@ export default function Dashboard() {
   };
 
   const lineData = {
-    labels: analytics?.trend?.map((item) => item.label) || [],
-    datasets: [{ label: "Spending Trend", data: analytics?.trend?.map((item) => item.total) || [], borderColor: "#ef4444", tension: 0.35 }],
+    labels: analytics?.daily_trend?.map((item) => item.label) || [],
+    datasets: [
+      {
+        label: "Daily Expense",
+        data: analytics?.daily_trend?.map((item) => item.expense) || [],
+        borderColor: "#ef4444",
+        backgroundColor: "rgba(239, 68, 68, 0.2)",
+        pointBackgroundColor: "#ef4444",
+        pointRadius: 4,
+        tension: 0.3,
+      },
+      {
+        label: "Daily Income",
+        data: analytics?.daily_trend?.map((item) => item.income) || [],
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34, 197, 94, 0.2)",
+        pointBackgroundColor: "#22c55e",
+        pointRadius: 4,
+        tension: 0.3,
+      },
+    ],
   };
 
   if (loading) {
@@ -186,7 +199,26 @@ export default function Dashboard() {
         <div className="panel"><h3>Monthly Expenses</h3>{barData.labels.length ? <ChartCanvas type="bar" data={barData} options={{ scales: { y: { beginAtZero: true } } }} /> : <EmptyState message="No monthly data" />}</div>
       </div>
 
-      <div className="panel"><h3>Spending Trend</h3>{lineData.labels.length ? <ChartCanvas type="line" data={lineData} options={{ scales: { y: { beginAtZero: true } } }} /> : <EmptyState message="No trend data" />}</div>
+      <div className="panel">
+        <h3>Daily Income vs Expense Trend ({analytics?.trend_month || budgetForm.month})</h3>
+        {lineData.labels.length ? (
+          <ChartCanvas
+            type="line"
+            data={lineData}
+            options={{
+              responsive: true,
+              interaction: { mode: "index", intersect: false },
+              plugins: {
+                legend: { position: "top" },
+                tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y || 0)}` } },
+              },
+              scales: { y: { beginAtZero: true } },
+            }}
+          />
+        ) : (
+          <EmptyState message="No daily income/expense data available for selected month" />
+        )}
+      </div>
 
       <div className="panel">
         <h3>Smart Insights</h3>

@@ -15,9 +15,26 @@ def month_label(key: str) -> str:
     return dt.strftime("%b %Y")
 
 
-def get_dashboard_analytics(db, user_id: int) -> dict:
+def _resolve_month(month: str | None) -> str:
+    if month:
+        try:
+            datetime.strptime(month, "%Y-%m")
+            return month
+        except ValueError:
+            pass
+
+    today = date.today()
+    return f"{today.year}-{today.month:02d}"
+
+
+def get_dashboard_analytics(db, user_id: int, month: str | None = None) -> dict:
+    target_month = _resolve_month(month)
     expenses = db.execute(
         "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
+        (user_id,),
+    ).fetchall()
+    incomes = db.execute(
+        "SELECT amount, date FROM incomes WHERE user_id = ? ORDER BY date ASC",
         (user_id,),
     ).fetchall()
 
@@ -48,11 +65,34 @@ def get_dashboard_analytics(db, user_id: int) -> dict:
         trend.append({**entry, "change_percent": round(change, 2)})
         previous = total
 
+    daily_expense_totals = defaultdict(float)
+    daily_income_totals = defaultdict(float)
+    for row in expenses:
+        if month_key(row["date"]) == target_month:
+            daily_expense_totals[row["date"]] += float(row["amount"])
+
+    for row in incomes:
+        if month_key(row["date"]) == target_month:
+            daily_income_totals[row["date"]] += float(row["amount"])
+
+    daily_dates = sorted(set(daily_expense_totals.keys()) | set(daily_income_totals.keys()))
+    daily_trend = [
+        {
+            "date": day,
+            "label": datetime.strptime(day, "%Y-%m-%d").strftime("%b %d"),
+            "expense": round(daily_expense_totals.get(day, 0.0), 2),
+            "income": round(daily_income_totals.get(day, 0.0), 2),
+        }
+        for day in daily_dates
+    ]
+
     return {
         "total_expenses": round(total_expenses, 2),
+        "trend_month": target_month,
         "category_breakdown": category_breakdown,
         "monthly_comparison": monthly_comparison,
         "trend": trend,
+        "daily_trend": daily_trend,
     }
 
 
