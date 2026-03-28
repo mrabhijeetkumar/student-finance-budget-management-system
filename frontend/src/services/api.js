@@ -25,12 +25,28 @@ const API = axios.create({
   timeout: REQUEST_TIMEOUT_MS,
 });
 
+let warmupPromise = null;
+
 export const setAuthToken = (token) => {
   if (token) {
     API.defaults.headers.common.Authorization = `Bearer ${token}`;
   } else {
     delete API.defaults.headers.common.Authorization;
   }
+};
+
+export const warmupBackend = async () => {
+  if (!warmupPromise) {
+    warmupPromise = API.get("/health", { timeout: 20000 })
+      .catch(() => null)
+      .finally(() => {
+        setTimeout(() => {
+          warmupPromise = null;
+        }, 60000);
+      });
+  }
+
+  return warmupPromise;
 };
 
 API.interceptors.response.use(
