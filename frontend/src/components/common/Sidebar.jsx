@@ -23,10 +23,14 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
-        <img src={fintrackLogo} alt="FinTrack Pro" style={{ width: 120, height: 80, marginBottom: 8, objectFit: "contain" }} />
+      <div className="sidebar-brand">
+        <img src={fintrackLogo} alt="FinTrack Pro" />
+        <div>
+          <h1>FinTrack Pro</h1>
+          <p className="sidebar-caption">Industry-grade finance workspace</p>
+        </div>
       </div>
-      <p className="sidebar-caption">Industrial Finance Suite</p>
+
       <nav className="sidebar-nav">
         {links.map((link) => (
           <NavLink key={link.to} to={link.to} className={({ isActive }) => `sidebar-link ${isActive ? "sidebar-link-active" : ""}`}>
@@ -35,7 +39,10 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <button className="button button-ghost" onClick={handleLogout}>Logout</button>
+
+      <div className="sidebar-spacer">
+        <button className="button button-ghost" onClick={handleLogout}>Logout</button>
+      </div>
     </aside>
   );
 }

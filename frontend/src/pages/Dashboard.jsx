@@ -142,10 +142,19 @@ export default function Dashboard() {
     <AppShell title="Dashboard" subtitle="Intelligent financial management">
       <ToastMessage message={toast} type="error" onClose={() => setToast("")} />
 
-      <div className="stats-grid">
-        <StatCard label="Total Income" value={formatCurrency(summary?.total_income || 0)} colorClass="text-green" />
-        <StatCard label="Total Expense" value={formatCurrency(summary?.total_expense || 0)} colorClass="text-red" />
-        <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
+      <div className="panel">
+        <div className="panel-title-row">
+          <div>
+            <h3 style={{ marginBottom: 4 }}>Financial Snapshot</h3>
+            <p className="muted">A quick glance at your current month performance.</p>
+          </div>
+          <span className="chip chip-success">Live Analytics</span>
+        </div>
+        <div className="stats-grid" style={{ marginTop: 12 }}>
+          <StatCard label="Total Income" value={formatCurrency(summary?.total_income || 0)} colorClass="text-green" />
+          <StatCard label="Total Expense" value={formatCurrency(summary?.total_expense || 0)} colorClass="text-red" />
+          <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
+        </div>
       </div>
       <div className="stats-grid">
         <StatCard label="Monthly Delta" value={formatCurrency(kpis?.delta_amount || 0)} colorClass={(kpis?.delta_amount || 0) > 0 ? "text-red" : "text-green"} />
@@ -222,7 +231,11 @@ export default function Dashboard() {
 
       <div className="panel">
         <h3>Smart Insights</h3>
-        <ul>{insights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
+        {!insights.length ? (
+          <EmptyState message="Insights will appear once enough activity is available" />
+        ) : (
+          <ul className="rank-list">{insights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
+        )}
       </div>
     </AppShell>
   );
