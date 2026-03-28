@@ -39,12 +39,27 @@ def register():
         return error_response("Email already registered", 409)
 
     hashed_password = generate_password_hash(password)
-    cursor = db.execute(
-        "INSERT INTO users (name, email, password) VALUES (?, ?, ?) RETURNING id",
-        (name, email, hashed_password),
-    )
-    inserted = cursor.fetchone()
-    db.commit()
+
+    try:
+        cursor = db.execute(
+            "INSERT INTO users (name, email, password) VALUES (?, ?, ?) RETURNING id",
+            (name, email, hashed_password),
+        )
+        inserted = cursor.fetchone()
+        db.commit()
+    except Exception:
+        db.rollback()
+        duplicate_user = db.execute("SELECT id, name, email FROM users WHERE email = ?", (email,)).fetchone()
+        if duplicate_user:
+            user = {
+                "id": duplicate_user["id"],
+                "name": duplicate_user["name"],
+                "email": duplicate_user["email"],
+            }
+            token = generate_token(user)
+            return success_response("User already exists. Logged in successfully", {"token": token, "user": user}, 200)
+
+        return error_response("Unable to create account right now. Please try again.", 500)
 
     user = {"id": inserted["id"], "name": name, "email": email}
     token = generate_token(user)
@@ -88,3 +103,31 @@ def login():
         },
         200,
     )
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+
+    email = data.get("email", "").strip().lower()
+    new_password = data.get("newPassword", "").strip()
+
+    if not email or not new_password:
+        return error_response("Email and new password are required", 400)
+
+    if not is_valid_email(email):
+        return error_response("Invalid email format", 400)
+
+    if not is_strong_password(new_password):
+        return error_response("Password must be at least 6 characters long", 400)
+
+    db = get_db()
+    user = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if not user:
+        return error_response("No account found with this email", 404)
+
+    hashed_password = generate_password_hash(new_password)
+    db.execute("UPDATE users SET password = ? WHERE email = ?", (hashed_password, email))
+    db.commit()
+
+    return success_response("Password reset successful. Please login with your new password.", None, 200)
