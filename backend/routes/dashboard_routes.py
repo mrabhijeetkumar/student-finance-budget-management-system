@@ -41,7 +41,8 @@ def get_summary():
 @token_required
 def dashboard_analytics():
     db = get_db()
-    analytics = get_dashboard_analytics(db, g.user_id)
+    month = request.args.get("month")
+    analytics = get_dashboard_analytics(db, g.user_id, month=month)
     return success_response("Analytics data", analytics)
 
 
@@ -85,7 +86,7 @@ def dashboard_overview():
         (g.user_id,),
     ).fetchone()["total"]
 
-    analytics = get_dashboard_analytics(db, g.user_id)
+    analytics = get_dashboard_analytics(db, g.user_id, month=month)
     insights = generate_smart_insights(db, g.user_id)
     prediction = predict_next_month_expense(db, g.user_id)
     kpis = get_dashboard_kpis(db, g.user_id)
