@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Expenses from "./pages/Expenses";
 import Income from "./pages/Income";
@@ -19,6 +20,7 @@ function App() {
       <Route path="/" element={<AuthRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
       <Route path="/income" element={<ProtectedRoute><Income /></ProtectedRoute>} />

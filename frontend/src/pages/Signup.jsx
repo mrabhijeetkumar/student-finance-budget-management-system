@@ -45,8 +45,19 @@ export default function Signup() {
         state: { message: "Account created successfully. Please login." },
       });
     } catch (error) {
+      if (error.response?.status === 409) {
+        navigate("/login", {
+          replace: true,
+          state: { message: "Email already registered. Please login." },
+        });
+        return;
+      }
+
+      const isTimeout = error.code === "ECONNABORTED";
       setToast({
-        message: error.response?.data?.message || "Signup failed. Please try again.",
+        message: isTimeout
+          ? "Server is taking longer than expected. Please try again."
+          : error.response?.data?.message || "Signup failed. Please try again.",
         type: "error",
       });
     } finally {

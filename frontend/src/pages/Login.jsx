@@ -39,8 +39,11 @@ export default function Login() {
       setAuthToken(token);
       navigate("/dashboard", { replace: true });
     } catch (error) {
+      const isTimeout = error.code === "ECONNABORTED";
       setToast({
-        message: error.response?.data?.message || "Login failed. Please try again.",
+        message: isTimeout
+          ? "Server is taking longer than expected. Please try again."
+          : error.response?.data?.message || "Login failed. Please try again.",
         type: "error",
       });
     } finally {
@@ -91,6 +94,10 @@ export default function Login() {
         <button className="button" type="submit" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
         </button>
+
+        <p className="auth-forgot">
+          <Link to="/forgot-password">Forgot Password?</Link>
+        </p>
 
         <p className="auth-switch">
           New user? <Link to="/signup">Create an account</Link>
