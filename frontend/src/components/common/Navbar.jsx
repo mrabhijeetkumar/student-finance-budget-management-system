@@ -18,6 +18,11 @@ export default function Navbar({ title, subtitle }) {
       .join("");
   }, [userName]);
 
+  const formattedDate = useMemo(
+    () => new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date()),
+    [],
+  );
+
   useEffect(() => {
     const onClick = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -39,10 +44,10 @@ export default function Navbar({ title, subtitle }) {
       <div className="topbar-actions">
         <button className="theme-btn" onClick={toggleTheme}>
           <span>{theme === "dark" ? "☀️" : "🌙"}</span>
-          <span>{theme === "dark" ? "Light" : "Dark"}</span>
+          <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
         </button>
 
-        <p className="topbar-date">{new Date().toLocaleDateString()}</p>
+        <p className="topbar-date">📅 {formattedDate}</p>
 
         <div className="profile-menu" ref={menuRef}>
           <button className="profile-trigger" onClick={() => setOpen((prev) => !prev)}>
@@ -60,7 +65,7 @@ export default function Navbar({ title, subtitle }) {
                   <p>{userEmail}</p>
                 </div>
               </div>
-              <p className="muted">Member since today</p>
+              <p className="muted">Your data is synced securely for this account.</p>
             </div>
           ) : null}
         </div>
