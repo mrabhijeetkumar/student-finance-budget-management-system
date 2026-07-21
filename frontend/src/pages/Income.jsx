@@ -20,6 +20,7 @@ export default function Income() {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState({ message: "", type: "success" });
   const [search, setSearch] = useState("");
   const [confirmId, setConfirmId] = useState(null);
@@ -40,19 +41,34 @@ export default function Income() {
     loadIncome();
   }, []);
 
-  const addIncome = async (event) => {
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingId(null);
+  };
+
+  const saveIncome = async (event) => {
     event.preventDefault();
     try {
       setSaving(true);
-      await API.post("/incomes", form);
-      setForm(initialForm);
-      setToast({ message: "Income added", type: "success" });
+      if (editingId) {
+        await API.put(`/incomes/${editingId}`, form);
+        setToast({ message: "Income updated", type: "success" });
+      } else {
+        await API.post("/incomes", form);
+        setToast({ message: "Income added", type: "success" });
+      }
+      resetForm();
       await loadIncome();
-    } catch {
-      setToast({ message: "Failed to add income", type: "error" });
+    } catch (error) {
+      setToast({ message: error.response?.data?.message || "Failed to save income", type: "error" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    setForm({ amount: item.amount, source: item.source, date: item.date, note: item.note || "" });
   };
 
   const deleteIncome = async () => {
@@ -100,8 +116,8 @@ export default function Income() {
       </div>
 
       <div className="panel">
-        <h3>Add Income</h3>
-        <form className="form-grid" onSubmit={addIncome}>
+        <h3>{editingId ? "Edit Income" : "Add Income"}</h3>
+        <form className="form-grid" onSubmit={saveIncome}>
           <input
             className="input"
             type="number"
@@ -130,9 +146,12 @@ export default function Income() {
             value={form.note}
             onChange={(event) => setForm({ ...form, note: event.target.value })}
           />
-          <button className="button" type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Add Income"}
-          </button>
+          <div className="form-actions">
+            <button className="button" type="submit" disabled={saving}>
+              {saving ? "Saving..." : editingId ? "Update Income" : "Add Income"}
+            </button>
+            {editingId ? <button className="button button-ghost" type="button" onClick={resetForm}>Cancel Edit</button> : null}
+          </div>
         </form>
       </div>
 
@@ -161,6 +180,9 @@ export default function Income() {
                   <td>{item.note || "-"}</td>
                   <td className="text-green">{formatCurrency(item.amount)}</td>
                   <td>
+                    <button className="link-btn" onClick={() => startEdit(item)}>
+                      Edit
+                    </button>
                     <button className="link-btn danger" onClick={() => setConfirmId(item.id)}>
                       Delete
                     </button>

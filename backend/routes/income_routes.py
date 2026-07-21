@@ -25,14 +25,14 @@ def get_incomes():
 @income_bp.route("", methods=["POST"])
 @token_required
 def add_income():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     amount = data.get("amount")
-    source = data.get("source")
-    date = data.get("date")
-    note = data.get("note", "")
+    source = (data.get("source") or "").strip()
+    date = (data.get("date") or "").strip()
+    note = (data.get("note") or "").strip()
 
-    if not amount or not source or not date:
+    if amount is None or not source or not date:
         return error_response("Amount, source, and date are required", 400)
 
     db = get_db()
@@ -44,6 +44,36 @@ def add_income():
     db.commit()
 
     return success_response("Income added successfully", None, 201)
+
+
+@income_bp.route("/<int:id>", methods=["PUT"])
+@token_required
+def update_income(id):
+    data = request.get_json(silent=True) or {}
+
+    amount = data.get("amount")
+    source = (data.get("source") or "").strip()
+    date = (data.get("date") or "").strip()
+    note = (data.get("note") or "").strip()
+
+    if amount is None or not source or not date:
+        return error_response("Amount, source, and date are required", 400)
+
+    db = get_db()
+    existing = db.execute(
+        "SELECT id FROM incomes WHERE id = ? AND user_id = ?", (id, g.user_id)
+    ).fetchone()
+
+    if not existing:
+        return error_response("Income not found", 404)
+
+    db.execute(
+        "UPDATE incomes SET amount = ?, source = ?, date = ?, note = ? WHERE id = ? AND user_id = ?",
+        (amount, source, date, note, id, g.user_id),
+    )
+    db.commit()
+
+    return success_response("Income updated successfully")
 
 
 @income_bp.route("/<int:id>", methods=["DELETE"])
@@ -60,8 +90,8 @@ def delete_income(id):
         return error_response("Income not found", 404)
 
     db.execute(
-        "DELETE FROM incomes WHERE id = ?",
-        (id,)
+        "DELETE FROM incomes WHERE id = ? AND user_id = ?",
+        (id, g.user_id)
     )
     db.commit()
 

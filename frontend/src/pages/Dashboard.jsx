@@ -8,7 +8,6 @@ import EmptyState from "../components/common/EmptyState";
 import ToastMessage from "../components/common/ToastMessage";
 import { EXPENSE_CATEGORIES } from "../constants/categories";
 import { formatCurrency } from "../utils/finance";
-import { getDashboardCache, setDashboardCache } from "../services/dashboardCache";
 
 function ChartCanvas({ type, data, options }) {
   const canvasRef = useRef(null);
@@ -52,33 +51,24 @@ export default function Dashboard() {
   });
 
   const loadDashboard = async () => {
-    const month = budgetForm.month;
-    const cachedOverview = getDashboardCache(month);
-
-    if (cachedOverview) {
-      setSummary(cachedOverview.summary || null);
-      setAnalytics(cachedOverview.analytics || null);
-      setInsights(cachedOverview.insights || []);
-      setPrediction(cachedOverview.prediction || null);
-      setKpis(cachedOverview.kpis || null);
-      setBudgetData(cachedOverview.budgets || null);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-
     try {
-      const overviewRes = await API.get("/dashboard/overview", { params: { month } });
-      const overview = overviewRes.data.data || {};
+      setLoading(true);
+      const month = budgetForm.month;
+      const [summaryRes, analyticsRes, insightsRes, predictionRes, kpisRes, budgetRes] = await Promise.all([
+        API.get("/dashboard/summary"),
+        API.get("/dashboard/analytics"),
+        API.get("/dashboard/insights"),
+        API.get("/dashboard/prediction"),
+        API.get("/dashboard/kpis"),
+        API.get("/budgets", { params: { month } }),
+      ]);
 
-      setDashboardCache(month, overview);
-
-      setSummary(overview.summary || null);
-      setAnalytics(overview.analytics || null);
-      setInsights(overview.insights || []);
-      setPrediction(overview.prediction || null);
-      setKpis(overview.kpis || null);
-      setBudgetData(overview.budgets || null);
+      setSummary(summaryRes.data.data);
+      setAnalytics(analyticsRes.data.data);
+      setInsights(insightsRes.data.data?.insights || []);
+      setPrediction(predictionRes.data.data);
+      setKpis(kpisRes.data.data);
+      setBudgetData(budgetRes.data.data);
     } catch {
       setToast("Failed to load dashboard data");
     } finally {
@@ -127,27 +117,8 @@ export default function Dashboard() {
   };
 
   const lineData = {
-    labels: analytics?.daily_trend?.map((item) => item.label) || [],
-    datasets: [
-      {
-        label: "Daily Expense",
-        data: analytics?.daily_trend?.map((item) => item.expense) || [],
-        borderColor: "#ef4444",
-        backgroundColor: "rgba(239, 68, 68, 0.2)",
-        pointBackgroundColor: "#ef4444",
-        pointRadius: 4,
-        tension: 0.3,
-      },
-      {
-        label: "Daily Income",
-        data: analytics?.daily_trend?.map((item) => item.income) || [],
-        borderColor: "#22c55e",
-        backgroundColor: "rgba(34, 197, 94, 0.2)",
-        pointBackgroundColor: "#22c55e",
-        pointRadius: 4,
-        tension: 0.3,
-      },
-    ],
+    labels: analytics?.trend?.map((item) => item.label) || [],
+    datasets: [{ label: "Spending Trend", data: analytics?.trend?.map((item) => item.total) || [], borderColor: "#ef4444", tension: 0.35 }],
   };
 
   if (loading) {
@@ -158,19 +129,10 @@ export default function Dashboard() {
     <AppShell title="Dashboard" subtitle="Intelligent financial management">
       <ToastMessage message={toast} type="error" onClose={() => setToast("")} />
 
-      <div className="panel">
-        <div className="panel-title-row">
-          <div>
-            <h3 style={{ marginBottom: 4 }}>Financial Snapshot</h3>
-            <p className="muted">A quick glance at your current month performance.</p>
-          </div>
-          <span className="chip chip-success">Live Analytics</span>
-        </div>
-        <div className="stats-grid" style={{ marginTop: 12 }}>
-          <StatCard label="Total Income" value={formatCurrency(summary?.total_income || 0)} colorClass="text-green" />
-          <StatCard label="Total Expense" value={formatCurrency(summary?.total_expense || 0)} colorClass="text-red" />
-          <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
-        </div>
+      <div className="stats-grid">
+        <StatCard label="Total Income" value={formatCurrency(summary?.total_income || 0)} colorClass="text-green" />
+        <StatCard label="Total Expense" value={formatCurrency(summary?.total_expense || 0)} colorClass="text-red" />
+        <StatCard label="Balance" value={formatCurrency(summary?.balance || 0)} colorClass="text-blue" />
       </div>
       <div className="stats-grid">
         <StatCard label="Monthly Delta" value={formatCurrency(kpis?.delta_amount || 0)} colorClass={(kpis?.delta_amount || 0) > 0 ? "text-red" : "text-green"} />
@@ -224,34 +186,11 @@ export default function Dashboard() {
         <div className="panel"><h3>Monthly Expenses</h3>{barData.labels.length ? <ChartCanvas type="bar" data={barData} options={{ scales: { y: { beginAtZero: true } } }} /> : <EmptyState message="No monthly data" />}</div>
       </div>
 
-      <div className="panel">
-        <h3>Daily Income vs Expense Trend ({analytics?.trend_month || budgetForm.month})</h3>
-        {lineData.labels.length ? (
-          <ChartCanvas
-            type="line"
-            data={lineData}
-            options={{
-              responsive: true,
-              interaction: { mode: "index", intersect: false },
-              plugins: {
-                legend: { position: "top" },
-                tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y || 0)}` } },
-              },
-              scales: { y: { beginAtZero: true } },
-            }}
-          />
-        ) : (
-          <EmptyState message="No daily income/expense data available for selected month" />
-        )}
-      </div>
+      <div className="panel"><h3>Spending Trend</h3>{lineData.labels.length ? <ChartCanvas type="line" data={lineData} options={{ scales: { y: { beginAtZero: true } } }} /> : <EmptyState message="No trend data" />}</div>
 
       <div className="panel">
         <h3>Smart Insights</h3>
-        {!insights.length ? (
-          <EmptyState message="Insights will appear once enough activity is available" />
-        ) : (
-          <ul className="rank-list">{insights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
-        )}
+        <ul>{insights.map((insight) => <li key={insight}>{insight}</li>)}</ul>
       </div>
     </AppShell>
   );

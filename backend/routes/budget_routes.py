@@ -58,7 +58,7 @@ def get_budgets():
 @budget_bp.route("", methods=["POST"])
 @token_required
 def upsert_budget():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     month = (data.get("month") or f"{date.today().year}-{date.today().month:02d}").strip()
     category = (data.get("category") or "").strip()
     amount = data.get("amount")

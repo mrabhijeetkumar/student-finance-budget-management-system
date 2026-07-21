@@ -10,16 +10,16 @@ export default function Reports() {
   const [toast, setToast] = useState({ message: "", type: "success" });
   const [analytics, setAnalytics] = useState(null);
 
-  const loadAnalytics = async () => {
-    try {
-      const res = await API.get("/dashboard/analytics");
-      setAnalytics(res.data.data);
-    } catch {
-      setToast({ message: "Failed to load analytics", type: "error" });
-    }
-  };
-
   useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const res = await API.get("/dashboard/analytics");
+        setAnalytics(res.data.data);
+      } catch {
+        setToast({ message: "Failed to load analytics", type: "error" });
+      }
+    };
+
     loadAnalytics();
   }, []);
 

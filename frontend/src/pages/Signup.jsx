@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import ToastMessage from "../components/common/ToastMessage";
-import API, { setAuthToken, warmupBackend } from "../services/api";
-import { setDashboardCache } from "../services/dashboardCache";
+import API, { setAuthToken } from "../services/api";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -12,10 +11,6 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" });
   const navigate = useNavigate();
-
-  useEffect(() => {
-    warmupBackend();
-  }, []);
 
   const handleSignup = async (event) => {
     event.preventDefault();
@@ -41,17 +36,6 @@ export default function Signup() {
         localStorage.setItem("user_email", user.email);
         localStorage.setItem("user_name", user.name || "User");
         setAuthToken(token);
-        const month = new Date().toISOString().slice(0, 7);
-
-        API.get("/dashboard/overview", {
-          params: { month },
-          timeout: 10000,
-        })
-          .then((overviewRes) => {
-            setDashboardCache(month, overviewRes.data?.data || null);
-          })
-          .catch(() => null);
-
         navigate("/dashboard", { replace: true });
         return;
       }
@@ -61,19 +45,8 @@ export default function Signup() {
         state: { message: "Account created successfully. Please login." },
       });
     } catch (error) {
-      if (error.response?.status === 409) {
-        navigate("/login", {
-          replace: true,
-          state: { message: "Email already registered. Please login." },
-        });
-        return;
-      }
-
-      const isTimeout = error.code === "ECONNABORTED";
       setToast({
-        message: isTimeout
-          ? "Server is taking longer than expected. Please try again."
-          : error.response?.data?.message || "Signup failed. Please try again.",
+        message: error.response?.data?.message || "Signup failed. Please try again.",
         type: "error",
       });
     } finally {

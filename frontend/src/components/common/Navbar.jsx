@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useTheme from "../../hooks/useTheme";
+import { setAuthToken } from "../../services/api";
 
 export default function Navbar({ title, subtitle }) {
   const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
+  const navigate = useNavigate();
 
   const userName = localStorage.getItem("user_name") || "User";
   const userEmail = localStorage.getItem("user_email") || "user@example.com";
@@ -18,11 +21,6 @@ export default function Navbar({ title, subtitle }) {
       .join("");
   }, [userName]);
 
-  const formattedDate = useMemo(
-    () => new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date()),
-    [],
-  );
-
   useEffect(() => {
     const onClick = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -34,6 +32,14 @@ export default function Navbar({ title, subtitle }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_name");
+    setAuthToken(null);
+    navigate("/login", { replace: true });
+  };
+
   return (
     <header className="topbar">
       <div>
@@ -44,10 +50,10 @@ export default function Navbar({ title, subtitle }) {
       <div className="topbar-actions">
         <button className="theme-btn" onClick={toggleTheme}>
           <span>{theme === "dark" ? "☀️" : "🌙"}</span>
-          <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          <span>{theme === "dark" ? "Light" : "Dark"}</span>
         </button>
 
-        <p className="topbar-date">📅 {formattedDate}</p>
+        <p className="topbar-date">{new Date().toLocaleDateString()}</p>
 
         <div className="profile-menu" ref={menuRef}>
           <button className="profile-trigger" onClick={() => setOpen((prev) => !prev)}>
@@ -65,7 +71,12 @@ export default function Navbar({ title, subtitle }) {
                   <p>{userEmail}</p>
                 </div>
               </div>
-              <p className="muted">Your data is synced securely for this account.</p>
+              <button className="menu-btn" onClick={() => { setOpen(false); navigate("/profile"); }}>
+                👤 View Profile
+              </button>
+              <button className="menu-btn" onClick={handleLogout}>
+                🚪 Logout
+              </button>
             </div>
           ) : null}
         </div>

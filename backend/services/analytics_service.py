@@ -15,20 +15,11 @@ def month_label(key: str) -> str:
     return dt.strftime("%b %Y")
 
 
-def _resolve_month(month: str | None) -> str:
-    if month:
-        try:
-            datetime.strptime(month, "%Y-%m")
-            return month
-        except ValueError:
-            pass
-
-    today = date.today()
-    return f"{today.year}-{today.month:02d}"
-
-
-def build_dashboard_analytics(expenses, incomes, month: str | None = None) -> dict:
-    target_month = _resolve_month(month)
+def get_dashboard_analytics(db, user_id: int) -> dict:
+    expenses = db.execute(
+        "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
+        (user_id,),
+    ).fetchall()
 
     total_expenses = float(sum(row["amount"] for row in expenses))
 
@@ -57,54 +48,24 @@ def build_dashboard_analytics(expenses, incomes, month: str | None = None) -> di
         trend.append({**entry, "change_percent": round(change, 2)})
         previous = total
 
-    daily_expense_totals = defaultdict(float)
-    daily_income_totals = defaultdict(float)
-    for row in expenses:
-        if month_key(row["date"]) == target_month:
-            daily_expense_totals[row["date"]] += float(row["amount"])
-
-    for row in incomes:
-        if month_key(row["date"]) == target_month:
-            daily_income_totals[row["date"]] += float(row["amount"])
-
-    daily_dates = sorted(set(daily_expense_totals.keys()) | set(daily_income_totals.keys()))
-    daily_trend = [
-        {
-            "date": day,
-            "label": datetime.strptime(day, "%Y-%m-%d").strftime("%b %d"),
-            "expense": round(daily_expense_totals.get(day, 0.0), 2),
-            "income": round(daily_income_totals.get(day, 0.0), 2),
-        }
-        for day in daily_dates
-    ]
-
     return {
         "total_expenses": round(total_expenses, 2),
-        "trend_month": target_month,
         "category_breakdown": category_breakdown,
         "monthly_comparison": monthly_comparison,
         "trend": trend,
-        "daily_trend": daily_trend,
     }
-
-
-def get_dashboard_analytics(db, user_id: int, month: str | None = None) -> dict:
-    expenses = db.execute(
-        "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
-        (user_id,),
-    ).fetchall()
-    incomes = db.execute(
-        "SELECT amount, date FROM incomes WHERE user_id = ? ORDER BY date ASC",
-        (user_id,),
-    ).fetchall()
-    return build_dashboard_analytics(expenses, incomes, month)
 
 
 def _month_total(expenses, month: str) -> float:
     return sum(float(row["amount"]) for row in expenses if month_key(row["date"]) == month)
 
 
-def build_smart_insights(expenses) -> list[str]:
+def generate_smart_insights(db, user_id: int) -> list[str]:
+    expenses = db.execute(
+        "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
+        (user_id,),
+    ).fetchall()
+
     if not expenses:
         return ["No expenses found yet. Start adding records for personalized insights."]
 
@@ -138,15 +99,12 @@ def build_smart_insights(expenses) -> list[str]:
     return insights
 
 
-def generate_smart_insights(db, user_id: int) -> list[str]:
-    expenses = db.execute(
+def predict_next_month_expense(db, user_id: int) -> dict:
+    rows = db.execute(
         "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
         (user_id,),
     ).fetchall()
-    return build_smart_insights(expenses)
 
-
-def build_expense_prediction(rows) -> dict:
     monthly = defaultdict(float)
     category_monthly = defaultdict(float)
     for row in rows:
@@ -186,14 +144,6 @@ def build_expense_prediction(rows) -> dict:
     return {"predicted_expense": round(max(pred, 0), 2), "suggestion": suggestion}
 
 
-def predict_next_month_expense(db, user_id: int) -> dict:
-    rows = db.execute(
-        "SELECT amount, category, date FROM expenses WHERE user_id = ? ORDER BY date ASC",
-        (user_id,),
-    ).fetchall()
-    return build_expense_prediction(rows)
-
-
 def expenses_to_csv(rows) -> str:
     import io
     string_io = io.StringIO()
@@ -204,7 +154,16 @@ def expenses_to_csv(rows) -> str:
     return string_io.getvalue()
 
 
-def build_dashboard_kpis(expenses, incomes) -> dict:
+def get_dashboard_kpis(db, user_id: int) -> dict:
+    expenses = db.execute(
+        "SELECT amount, date FROM expenses WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    incomes = db.execute(
+        "SELECT amount, date FROM incomes WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+
     today = date.today()
     current_month = f"{today.year}-{today.month:02d}"
     prev_date = date(today.year - 1, 12, 1) if today.month == 1 else date(today.year, today.month - 1, 1)
@@ -227,15 +186,3 @@ def build_dashboard_kpis(expenses, incomes) -> dict:
         "delta_percent": round(delta_pct, 2),
         "savings_rate": round(savings_rate, 2),
     }
-
-
-def get_dashboard_kpis(db, user_id: int) -> dict:
-    expenses = db.execute(
-        "SELECT amount, date FROM expenses WHERE user_id = ?",
-        (user_id,),
-    ).fetchall()
-    incomes = db.execute(
-        "SELECT amount, date FROM incomes WHERE user_id = ?",
-        (user_id,),
-    ).fetchall()
-    return build_dashboard_kpis(expenses, incomes)

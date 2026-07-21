@@ -46,14 +46,14 @@ def get_expenses():
 @expense_bp.route("", methods=["POST"])
 @token_required
 def add_expense():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
 
     amount = data.get("amount")
     category = (data.get("category") or "").strip()
     date = (data.get("date") or "").strip()
     note = (data.get("note") or "").strip()
 
-    if not amount or not category or not date:
+    if amount is None or not category or not date:
         return error_response("Amount, category, and date are required", 400)
 
     db = get_db()
@@ -69,14 +69,14 @@ def add_expense():
 @expense_bp.route("/<int:id>", methods=["PUT"])
 @token_required
 def update_expense(id):
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
 
     amount = data.get("amount")
     category = (data.get("category") or "").strip()
     date = (data.get("date") or "").strip()
     note = (data.get("note") or "").strip()
 
-    if not amount or not category or not date:
+    if amount is None or not category or not date:
         return error_response("Amount, category, and date are required", 400)
 
     db = get_db()
